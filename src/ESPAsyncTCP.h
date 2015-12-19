@@ -8,7 +8,6 @@
 #ifndef ASYNCTCP_H_
 #define ASYNCTCP_H_
 
-#define LWIP_INTERNAL
 
 extern "C" {
   #include "lwip/tcp.h"
@@ -21,28 +20,6 @@ extern "C" {
 #define USE_ASYNC_BUFFER 0
 #define SERVER_KEEP_CLIENTS 0
 #define CLIENT_SYNC_API 0
-
-#if USE_ASYNC_BUFFER
-class AsyncBuffer;
-
-class AsyncBuffer {
-  public:
-    AsyncBuffer *next;
-    size_t index;
-    size_t fill;
-    size_t size;
-    void * payload;
-    AsyncBuffer(size_t len):next(0),index(0),fill(0){
-      size = len;
-      payload = malloc(size);
-    }
-    ~AsyncBuffer(){
-      if(payload)
-        free(payload);
-    }
-};
-#endif
-
 
 class AsyncClient;
 
@@ -57,13 +34,6 @@ typedef std::function<void(void*, AsyncClient*, uint32_t time)> AcTimeoutHandler
 class AsyncClient {
   private:
     tcp_pcb* _pcb;
-#if CLIENT_SYNC_API
-    pbuf* _rx_buf;
-    size_t _rx_buf_offset;
-#endif
-#if USE_ASYNC_BUFFER
-    AsyncBuffer *_tx_buf;
-#endif
     AcConnectHandler _connect_cb;
     void* _connect_cb_arg;
     AcConnectHandler _discard_cb;
@@ -85,9 +55,6 @@ class AsyncClient {
     uint32_t _rx_last_packet;
     uint32_t _rx_since_timeout;
 
-#if CLIENT_SYNC_API
-    void _consume(size_t size);
-#endif
     err_t _close();
     err_t _connected(void* pcb, int8_t err);
     void _error(err_t err);
@@ -153,14 +120,6 @@ class AsyncClient {
     void onData(AcDataHandler cb, void* arg = 0);           //data received
     void onTimeout(AcTimeoutHandler cb, void* arg = 0);     //ack timeout
     void onPoll(AcConnectHandler cb, void* arg = 0);        //every 125ms when connected
-
-#if CLIENT_SYNC_API
-    size_t available();
-    char read();
-    size_t read(char* dst, size_t size);
-    char peek();
-    void flush();
-#endif
 };
 
 class AsyncServer {
@@ -170,9 +129,6 @@ class AsyncServer {
     tcp_pcb* _pcb;
     AcConnectHandler _connect_cb;
     void* _connect_cb_arg;
-#if SERVER_KEEP_CLIENTS
-    AsyncClient* _clients;
-#endif
 
   public:
     AsyncServer(IPAddress addr, uint16_t port);
@@ -184,9 +140,6 @@ class AsyncServer {
     void setNoDelay(bool nodelay);
     bool getNoDelay();
     uint8_t status();
-#if SERVER_KEEP_CLIENTS
-    void freeDisconected();
-#endif
 
   protected:
     int8_t _accept(tcp_pcb* newpcb, int8_t err);
