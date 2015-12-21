@@ -9,11 +9,13 @@
 #define ASYNCTCP_H_
 
 
+
+//#include "IPAddress.h"
+#include <ESP8266WiFi.h>
+
 extern "C" {
   #include "lwip/tcp.h"
 }
-#include "IPAddress.h"
-#include <ESP8266WiFi.h>
 
 #include <functional>
 
