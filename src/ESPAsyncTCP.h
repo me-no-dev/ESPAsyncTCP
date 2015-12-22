@@ -10,13 +10,7 @@
 
 
 
-//#include "IPAddress.h"
-#include <ESP8266WiFi.h>
-
-extern "C" {
-  #include "lwip/tcp.h"
-}
-
+#include "IPAddress.h"
 #include <functional>
 
 #define USE_ASYNC_BUFFER 0
@@ -29,9 +23,12 @@ class AsyncClient;
 
 typedef std::function<void(void*, AsyncClient*)> AcConnectHandler;
 typedef std::function<void(void*, AsyncClient*, size_t len, uint32_t time)> AcAckHandler;
-typedef std::function<void(void*, AsyncClient*, err_t error)> AcErrorHandler;
+typedef std::function<void(void*, AsyncClient*, int8_t error)> AcErrorHandler;
 typedef std::function<void(void*, AsyncClient*, void *data, size_t len)> AcDataHandler;
 typedef std::function<void(void*, AsyncClient*, uint32_t time)> AcTimeoutHandler;
+
+struct tcp_pcb;
+struct pbuf;
 
 class AsyncClient {
   private:
@@ -57,17 +54,17 @@ class AsyncClient {
     uint32_t _rx_last_packet;
     uint32_t _rx_since_timeout;
 
-    err_t _close();
-    err_t _connected(void* pcb, int8_t err);
-    void _error(err_t err);
-    err_t _poll(tcp_pcb* pcb);
-    err_t _sent(tcp_pcb* pcb, uint16_t len);
-    err_t _recv(tcp_pcb* pcb, pbuf* pb, err_t err);
-    static err_t _s_poll(void *arg, struct tcp_pcb *tpcb);
-    static err_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, err_t err);
-    static void _s_error(void *arg, err_t err);
-    static err_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
-    static err_t _s_connected(void* arg, void* tpcb, int8_t err);
+    int8_t _close();
+    int8_t _connected(void* pcb, int8_t err);
+    void _error(int8_t err);
+    int8_t _poll(tcp_pcb* pcb);
+    int8_t _sent(tcp_pcb* pcb, uint16_t len);
+    int8_t _recv(tcp_pcb* pcb, pbuf* pb, int8_t err);
+    static int8_t _s_poll(void *arg, struct tcp_pcb *tpcb);
+    static int8_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
+    static void _s_error(void *arg, int8_t err);
+    static int8_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
+    static int8_t _s_connected(void* arg, void* tpcb, int8_t err);
 
   public:
     AsyncClient* prev;
@@ -79,9 +76,7 @@ class AsyncClient {
     AsyncClient & operator=(const AsyncClient &other);
     AsyncClient & operator+=(const AsyncClient &other);
 
-    bool operator==(const AsyncClient &other) {
-      return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.addr == other._pcb->remote_ip.addr) && (_pcb->remote_port == other._pcb->remote_port));
-    }
+    bool operator==(const AsyncClient &other);
 
     bool operator!=(const AsyncClient &other) {
       return !(*this == other);
@@ -90,12 +85,12 @@ class AsyncClient {
     bool connect(IPAddress ip, uint16_t port);
     bool connect(const char* host, uint16_t port);
     void close();
-    //err_t _close();
-    err_t abort();
+    //int8_t _close();
+    int8_t abort();
     bool free();
 
     bool canSend();//ack is not pending
-    size_t space(){ return tcp_sndbuf(_pcb);}
+    size_t space();
     size_t write(const char* data, size_t size); //only when canSend() == true
 
     uint8_t state();

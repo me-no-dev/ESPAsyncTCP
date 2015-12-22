@@ -8,6 +8,7 @@ extern "C"{
   #include "lwip/tcp.h"
   #include "lwip/inet.h"
 }
+#include <ESP8266WiFi.h>
 
 static uint16_t _localPort = 10000;
 
@@ -96,7 +97,7 @@ AsyncClient& AsyncClient::operator=(const AsyncClient& other){
 }
 
 
-err_t AsyncClient::abort(){
+int8_t AsyncClient::abort(){
   if(_pcb)
     tcp_abort(_pcb);
   return ERR_ABRT;
@@ -130,7 +131,7 @@ size_t AsyncClient::write(const char* data, size_t size) {
     return 0;
   size_t room = tcp_sndbuf(_pcb);
   size_t will_send = (room < size) ? room : size;
-  err_t err = tcp_write(_pcb, data, will_send, 0);
+  int8_t err = tcp_write(_pcb, data, will_send, 0);
   if(err != ERR_OK)
     return 0;
   tcp_output(_pcb);
@@ -145,8 +146,8 @@ size_t AsyncClient::write(const char* data, size_t size) {
 
 // Private Callbacks
 
-err_t AsyncClient::_close(){
-  err_t err = ERR_OK;
+int8_t AsyncClient::_close(){
+  int8_t err = ERR_OK;
   if(_pcb) {
     err = tcp_close(_pcb);
     if(err != ERR_OK) {
@@ -172,7 +173,7 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
   return ERR_OK;
 }
 
-void AsyncClient::_error(err_t err) {
+void AsyncClient::_error(int8_t err) {
   if(_error_cb)
     _error_cb(_error_cb_arg, this, err);
   if(err){
@@ -182,7 +183,7 @@ void AsyncClient::_error(err_t err) {
   }
 }
 
-err_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
+int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
   _rx_last_packet = millis();
   _pcb_busy = false;
   if(_sent_cb)
@@ -190,7 +191,7 @@ err_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
   return ERR_OK;
 }
 
-err_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, err_t err) {
+int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   if(pb == 0){
     //os_printf("pb-null\n");
     return _close();
@@ -217,7 +218,7 @@ err_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, err_t err) {
   return ERR_OK;
 }
 
-err_t AsyncClient::_poll(tcp_pcb* pcb){
+int8_t AsyncClient::_poll(tcp_pcb* pcb){
   // Close requested
   if(_close_pcb){
     _close_pcb = false;
@@ -245,19 +246,19 @@ err_t AsyncClient::_poll(tcp_pcb* pcb){
 
 // lWIP Callbacks
 
-err_t AsyncClient::_s_poll(void *arg, struct tcp_pcb *tpcb) {
+int8_t AsyncClient::_s_poll(void *arg, struct tcp_pcb *tpcb) {
   return reinterpret_cast<AsyncClient*>(arg)->_poll(tpcb);
 }
 
-err_t AsyncClient::_s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, err_t err) {
+int8_t AsyncClient::_s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err) {
   return reinterpret_cast<AsyncClient*>(arg)->_recv(tpcb, pb, err);
 }
 
-void AsyncClient::_s_error(void *arg, err_t err) {
+void AsyncClient::_s_error(void *arg, int8_t err) {
   reinterpret_cast<AsyncClient*>(arg)->_error(err);
 }
 
-err_t AsyncClient::_s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len) {
+int8_t AsyncClient::_s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len) {
   return reinterpret_cast<AsyncClient*>(arg)->_sent(tpcb, len);
 }
 
@@ -405,6 +406,14 @@ void AsyncClient::onPoll(AcConnectHandler cb, void* arg){
   _poll_cb = cb;
   _poll_cb_arg = arg;
 }
+
+
+bool AsyncClient::operator==(const AsyncClient &other) {
+  return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.addr == other._pcb->remote_ip.addr) && (_pcb->remote_port == other._pcb->remote_port));
+}
+
+size_t AsyncClient::space(){ return tcp_sndbuf(_pcb);}
+
 /*
   Async TCP Server
 */
@@ -436,7 +445,7 @@ void AsyncServer::begin(){
   if(_pcb)
     return;
 
-  err_t err;
+  int8_t err;
   tcp_pcb* pcb = tcp_new();
   if (!pcb)
     return;
