@@ -239,7 +239,7 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
     return ERR_OK;
   }
   // Everything is fine
-  if(!_pcb_busy && _poll_cb)
+  if(_poll_cb)
     _poll_cb(_poll_cb_arg, this);
   return ERR_OK;
 }
