@@ -85,6 +85,7 @@ class AsyncClient {
     bool connect(IPAddress ip, uint16_t port);
     bool connect(const char* host, uint16_t port);
     void close();
+    void stop();
     //int8_t _close();
     int8_t abort();
     bool free();

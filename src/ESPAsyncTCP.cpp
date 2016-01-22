@@ -107,6 +107,10 @@ void AsyncClient::close(){
   _close_pcb = true;
 }
 
+void AsyncClient::stop() {
+    close();
+}
+
 bool AsyncClient::free(){
   if(!_pcb)
     return true;
