@@ -124,6 +124,10 @@ bool AsyncClient::free(){
   return false;
 }
 
+size_t AsyncClient::write(const char* data) {
+    return write(data, strlen(data));
+}
+
 size_t AsyncClient::write(const char* data, size_t size) {
   if(!_pcb || size == 0)
     return 0;
@@ -328,6 +332,34 @@ uint32_t AsyncClient::getLocalAddress() {
 uint16_t AsyncClient::getLocalPort() {
   if(!_pcb) return 0;
   return _pcb->local_port;
+}
+
+IPAddress AsyncClient::remoteIP() {
+    if(!_pcb) {
+        return IPAddress(0U);
+    }
+    return IPAddress(_pcb->remote_ip.addr);
+}
+
+uint16_t AsyncClient::remotePort() {
+    if(!_pcb) {
+        return 0;
+    }
+    return _pcb->remote_port;
+}
+
+IPAddress AsyncClient::localIP() {
+    if(!_pcb) {
+        return IPAddress(0U);
+    }
+    return IPAddress(_pcb->local_ip.addr);
+}
+
+uint16_t AsyncClient::localPort() {
+    if(!_pcb) {
+        return 0;
+    }
+    return _pcb->local_port;
 }
 
 uint8_t AsyncClient::state() {

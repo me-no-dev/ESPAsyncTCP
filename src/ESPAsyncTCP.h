@@ -91,6 +91,7 @@ class AsyncClient {
 
     bool canSend();//ack is not pending
     size_t space();
+    size_t write(const char* data);
     size_t write(const char* data, size_t size); //only when canSend() == true
 
     uint8_t state();
@@ -109,6 +110,10 @@ class AsyncClient {
     uint32_t getLocalAddress();
     uint16_t getLocalPort();
 
+    IPAddress remoteIP();
+    uint16_t  remotePort();
+    IPAddress localIP();
+    uint16_t  localPort();
 
     void onConnect(AcConnectHandler cb, void* arg = 0);     //on successful connect
     void onDisconnect(AcConnectHandler cb, void* arg = 0);  //disconnected
