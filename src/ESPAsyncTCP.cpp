@@ -1,6 +1,5 @@
 
 #include "Arduino.h"
-#include "debug.h"
 
 #include "ESPAsyncTCP.h"
 extern "C"{
@@ -8,7 +7,15 @@ extern "C"{
   #include "lwip/tcp.h"
   #include "lwip/inet.h"
 }
+
+#ifdef ESP8266
 #include <ESP8266WiFi.h>
+#elif defined(ESP31B)
+#include <ESP31BWiFi.h>
+#else
+#error "UNSUPPORTED ARCHITECTURE"
+#endif
+
 
 static uint16_t _localPort = 10000;
 
@@ -312,7 +319,11 @@ bool AsyncClient::getNoDelay(){
 
 uint32_t AsyncClient::getRemoteAddress() {
   if(!_pcb) return 0;
+#ifdef ESP8266
   return _pcb->remote_ip.addr;
+#else
+  return _pcb->remote_ip.ip4.addr;
+#endif
 }
 
 uint16_t AsyncClient::getRemotePort() {
@@ -322,7 +333,11 @@ uint16_t AsyncClient::getRemotePort() {
 
 uint32_t AsyncClient::getLocalAddress() {
   if(!_pcb) return 0;
+#ifdef ESP8266
   return _pcb->local_ip.addr;
+#else
+  return _pcb->local_ip.ip4.addr;
+#endif
 }
 
 uint16_t AsyncClient::getLocalPort() {
@@ -409,10 +424,55 @@ void AsyncClient::onPoll(AcConnectHandler cb, void* arg){
 
 
 bool AsyncClient::operator==(const AsyncClient &other) {
+#ifdef ESP8266
   return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.addr == other._pcb->remote_ip.addr) && (_pcb->remote_port == other._pcb->remote_port));
+#else
+  return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.ip4.addr == other._pcb->remote_ip.ip4.addr) && (_pcb->remote_port == other._pcb->remote_port));
+#endif
+
 }
 
 size_t AsyncClient::space(){ return tcp_sndbuf(_pcb);}
+
+const char * AsyncClient::errorToString(int8_t error){
+  switch(error){
+    case 0: return "OK";
+    case -1: return "Out of memory error";
+    case -2: return "Buffer error";
+    case -3: return "Timeout";
+    case -4: return "Routing problem";
+    case -5: return "Operation in progress";
+    case -6: return "Illegal value";
+    case -7: return "Operation would block";
+    case -8: return "Address in use";
+    case -9: return "Already connected";
+    case -10: return "Conn already established";
+    case -11: return "Connection aborted";
+    case -12: return "Connection reset";
+    case -13: return "Connection closed";
+    case -14: return "Not connected";
+    case -15: return "Illegal argument";
+    case -16: return "Low-level netif error";
+    default: return "UNKNOWN";
+  }
+}
+
+const char * AsyncClient::stateToString(){
+  switch(state()){
+    case 0: return "Closed";
+    case 1: return "Listen";
+    case 2: return "SYN Sent";
+    case 3: return "SYN Received";
+    case 4: return "Established";
+    case 5: return "FIN Wait 1";
+    case 6: return "FIN Wait 2";
+    case 7: return "Close Wait";
+    case 8: return "Closing";
+    case 9: return "Last ACK";
+    case 10: return "Time Wait";
+    default: return "UNKNOWN";
+  }
+}
 
 /*
   Async TCP Server

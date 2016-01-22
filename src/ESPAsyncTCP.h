@@ -117,6 +117,9 @@ class AsyncClient {
     void onData(AcDataHandler cb, void* arg = 0);           //data received
     void onTimeout(AcTimeoutHandler cb, void* arg = 0);     //ack timeout
     void onPoll(AcConnectHandler cb, void* arg = 0);        //every 125ms when connected
+
+    const char * errorToString(int8_t error);
+    const char * stateToString();
 };
 
 class AsyncServer {
