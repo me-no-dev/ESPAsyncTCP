@@ -31,7 +31,8 @@ struct tcp_pcb;
 struct pbuf;
 
 class AsyncClient {
-  private:
+  protected:
+    friend class AsyncTCPbuffer;
     tcp_pcb* _pcb;
     AcConnectHandler _connect_cb;
     void* _connect_cb_arg;
@@ -126,7 +127,7 @@ class AsyncClient {
 };
 
 class AsyncServer {
-  private:
+  protected:
     uint16_t _port;
     IPAddress _addr;
     tcp_pcb* _pcb;

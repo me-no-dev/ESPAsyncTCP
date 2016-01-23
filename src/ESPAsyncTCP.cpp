@@ -129,11 +129,14 @@ bool AsyncClient::free(){
 }
 
 size_t AsyncClient::write(const char* data) {
+    if(data == NULL) {
+        return 0;
+    }
     return write(data, strlen(data));
 }
 
 size_t AsyncClient::write(const char* data, size_t size) {
-  if(!_pcb || size == 0)
+  if(!_pcb || size == 0 || data == NULL)
     return 0;
   if(!canSend())
     return 0;
