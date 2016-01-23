@@ -28,12 +28,14 @@
 
 #include "ESPAsyncTCPbuffer.h"
 
-AsyncTCPbuffer::AsyncTCPbuffer(AsyncClient* c) :
-        AsyncTCPbuffer(c->_pcb) {
-}
 
-AsyncTCPbuffer::AsyncTCPbuffer(tcp_pcb* pcb) :
-        AsyncClient(pcb) {
+AsyncTCPbuffer::AsyncTCPbuffer(AsyncClient* client) {
+    if(client == NULL) {
+        DEBUG_ASYNC_TCP("[A-TCP] client is null!!!\n");
+        panic();
+    }
+
+    _client = client;
     _TXbuffer = new cbuf(1460);
     _RXbuffer = new cbuf(100);
     _RXmode = ATB_RX_MODE_FREE;
@@ -41,6 +43,7 @@ AsyncTCPbuffer::AsyncTCPbuffer(tcp_pcb* pcb) :
     _rxTerminator = 0x00;
     _rxReadBytesPtr = NULL;
     _rxReadStringPtr = NULL;
+    _cbDisconnect = NULL;
 
     _cbRX = NULL;
     _cbDone = NULL;
@@ -48,7 +51,10 @@ AsyncTCPbuffer::AsyncTCPbuffer(tcp_pcb* pcb) :
 }
 
 AsyncTCPbuffer::~AsyncTCPbuffer() {
-    AsyncClient::close();
+    if(_client) {
+        _client->close();
+    }
+
     if(_RXbuffer) {
         delete _RXbuffer;
         _RXbuffer = NULL;
@@ -82,29 +88,31 @@ size_t AsyncTCPbuffer::write(const char *data, size_t len) {
  * @return
  */
 size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
-    if(_TXbuffer == NULL || !AsyncClient::connected() || data == NULL || len == 0) {
+    if(_TXbuffer == NULL || _client == NULL || !_client->connected() || data == NULL || len == 0) {
         return 0;
     }
 
+    size_t bytesLeft = len;
     size_t free = _TXbuffer->room();
 
-    while(free < len) {
+    while(free < bytesLeft) {
 
-        size_t w = (len - free);
+        size_t w = (bytesLeft - free);
         w = _TXbuffer->write((const char*) data, w);
-        len -= w;
+        bytesLeft -= w;
         data += w;
 
-        while(!AsyncClient::canSend()) {
+        while(!_client->canSend()) {
             delay(0);
         }
         _sendBuffer();
         free = _TXbuffer->room();
     }
 
-    _TXbuffer->write((const char*) data, len);
+    _TXbuffer->write((const char*) data, bytesLeft);
     _sendBuffer();
     return len;
+
 }
 
 /**
@@ -112,7 +120,7 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
  */
 void AsyncTCPbuffer::flush() {
     while(!_TXbuffer->empty()) {
-        while(!AsyncClient::canSend()) {
+        while(!_client->canSend()) {
             delay(0);
         }
         _sendBuffer();
@@ -124,6 +132,9 @@ void AsyncTCPbuffer::noCallback() {
 }
 
 void AsyncTCPbuffer::readStringUntil(char terminator, String * str, AsyncTCPbufferDoneCb done) {
+    if(_client == NULL) {
+        return;
+    }
     DEBUG_ASYNC_TCP("[A-TCP] readStringUntil terminator: %02X\n", terminator);
     _RXmode = ATB_RX_MODE_NONE;
     _cbDone = done;
@@ -150,6 +161,9 @@ void AsyncTCPbuffer::readStringUntil(char terminator, String * str, AsyncTCPbuff
  */
 
 void AsyncTCPbuffer::readBytes(char *buffer, size_t length, AsyncTCPbufferDoneCb done) {
+    if(_client == NULL) {
+        return;
+    }
     DEBUG_ASYNC_TCP("[A-TCP] readBytes length: %d\n", length);
     _RXmode = ATB_RX_MODE_NONE;
     _cbDone = done;
@@ -163,6 +177,9 @@ void AsyncTCPbuffer::readBytes(uint8_t *buffer, size_t length, AsyncTCPbufferDon
 }
 
 void AsyncTCPbuffer::onData(AsyncTCPbufferDataCb cb) {
+    if(_client == NULL) {
+        return;
+    }
     DEBUG_ASYNC_TCP("[A-TCP] onData\n");
     _RXmode = ATB_RX_MODE_NONE;
     _cbDone = NULL;
@@ -170,15 +187,69 @@ void AsyncTCPbuffer::onData(AsyncTCPbufferDataCb cb) {
     _RXmode = ATB_RX_MODE_FREE;
 }
 
+void AsyncTCPbuffer::onDisconnect(AsyncTCPbufferDisconnectCb cb) {
+    _cbDisconnect = cb;
+}
+
+IPAddress AsyncTCPbuffer::remoteIP() {
+    if(!_client) {
+        return IPAddress(0U);
+    }
+    return _client->remoteIP();
+}
+
+uint16_t AsyncTCPbuffer::remotePort() {
+    if(!_client) {
+        return 0;
+    }
+    return _client->remotePort();
+}
+
+bool AsyncTCPbuffer::connected() {
+    if(!_client) {
+        return false;
+    }
+    return _client->connected();
+}
+
+void AsyncTCPbuffer::stop() {
+
+    if(!_client) {
+        return;
+    }
+    _client->stop();
+    _client = NULL;
+
+    if(_cbDone) {
+        switch(_RXmode) {
+            case ATB_RX_MODE_READ_BYTES:
+            case ATB_RX_MODE_TERMINATOR:
+            case ATB_RX_MODE_TERMINATOR_STRING:
+                _RXmode = ATB_RX_MODE_NONE;
+                _cbDone(false, NULL);
+                break;
+        }
+    }
+    _RXmode = ATB_RX_MODE_NONE;
+}
+
+void AsyncTCPbuffer::close() {
+    stop();
+}
+
+
 ///--------------------------------
 
 /**
  * attachCallbacks to AsyncClient class
  */
 void AsyncTCPbuffer::_attachCallbacks() {
+    if(!_client) {
+        return;
+    }
     DEBUG_ASYNC_TCP("[A-TCP] attachCallbacks\n");
 
-    AsyncClient::onPoll([](void *obj, AsyncClient* c) {
+    _client->onPoll([](void *obj, AsyncClient* c) {
         AsyncTCPbuffer* b = ((AsyncTCPbuffer*)(obj));
         if(!b->_TXbuffer->empty()) {
             b->_sendBuffer();
@@ -188,19 +259,27 @@ void AsyncTCPbuffer::_attachCallbacks() {
         //   }
     }, this);
 
-    AsyncClient::onAck([](void *obj, AsyncClient* c, size_t len, uint32_t time) {
+    _client->onAck([](void *obj, AsyncClient* c, size_t len, uint32_t time) {
         DEBUG_ASYNC_TCP("[A-TCP] onAck\n");
         ((AsyncTCPbuffer*)(obj))->_sendBuffer();
     }, this);
 
-    AsyncClient::onDisconnect([](void *obj, AsyncClient* c) {
+    _client->onDisconnect([](void *obj, AsyncClient* c) {
         DEBUG_ASYNC_TCP("[A-TCP] onDisconnect\n");
-        ((AsyncTCPbuffer*)(obj))->_on_close();
+        AsyncTCPbuffer* b = ((AsyncTCPbuffer*)(obj));
         c->free();
         delete c;
+        b->_client = NULL;
+        bool del = true;
+        if(b->_cbDisconnect) {
+            del = b->_cbDisconnect(b);
+        }
+        if(del) {
+            delete b;
+        }
     }, this);
 
-    AsyncClient::onData([](void *obj, AsyncClient* c, void *buf, size_t len) {
+    _client->onData([](void *obj, AsyncClient* c, void *buf, size_t len) {
         AsyncTCPbuffer* b = ((AsyncTCPbuffer*)(obj));
         b->_rxData((uint8_t *)buf, len);
     }, this);
@@ -214,12 +293,12 @@ void AsyncTCPbuffer::_attachCallbacks() {
 void AsyncTCPbuffer::_sendBuffer() {
     //DEBUG_ASYNC_TCP("[A-TCP] _sendBuffer...\n");
     size_t available = _TXbuffer->getSize();
-    if(available == 0 || !AsyncClient::connected() || !AsyncClient::canSend()) {
+    if(available == 0 || _client == NULL || !_client->connected() || !_client->canSend()) {
         return;
     }
 
-    if(available > space()) {
-        available = space();
+    if(available > _client->space()) {
+        available = _client->space();
     }
 
     char *out = new char[available];
@@ -229,7 +308,7 @@ void AsyncTCPbuffer::_sendBuffer() {
     }
     _TXbuffer->read(out, available);
 
-    size_t send = AsyncClient::write((const char*) out, available);
+    size_t send = _client->write((const char*) out, available);
     if(send != available) {
         DEBUG_ASYNC_TCP("[A-TCP] write failed\n");
     }
@@ -238,36 +317,17 @@ void AsyncTCPbuffer::_sendBuffer() {
 }
 
 /**
- * called on Disconnect
- */
-void AsyncTCPbuffer::_on_close() {
-    DEBUG_ASYNC_TCP("[A-TCP] _on_close\n");
-
-    if(_cbDone) {
-        switch(_RXmode) {
-            case ATB_RX_MODE_READ_BYTES:
-            case ATB_RX_MODE_TERMINATOR:
-            case ATB_RX_MODE_TERMINATOR_STRING:
-                _RXmode = ATB_RX_MODE_NONE;
-                _cbDone(false, NULL);
-                break;
-        }
-    }
-
-    if(_TXbuffer) {
-        cbuf *b = _TXbuffer;
-        _TXbuffer = NULL;
-        delete b;
-    }
-}
-
-/**
  * called on incoming data
  * @param buf
  * @param len
  */
 void AsyncTCPbuffer::_rxData(uint8_t *buf, size_t len) {
-    if(!AsyncClient::connected()) {
+    if(!_client || !_client->connected()) {
+        DEBUG_ASYNC_TCP("[A-TCP] not connected!\n");
+        return;
+    }
+    if(!_RXbuffer) {
+        DEBUG_ASYNC_TCP("[A-TCP] _rxData no _RXbuffer!\n");
         return;
     }
     DEBUG_ASYNC_TCP("[A-TCP] _rxData len: %d RXmode: %d\n", len, _RXmode);
@@ -323,7 +383,7 @@ void AsyncTCPbuffer::_rxData(uint8_t *buf, size_t len) {
  *
  */
 size_t AsyncTCPbuffer::_handleRxBuffer(uint8_t *buf, size_t len) {
-    if(!AsyncClient::connected()) {
+    if(!_client || !_client->connected() || _RXbuffer == NULL) {
         return 0;
     }
 

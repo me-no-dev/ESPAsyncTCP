@@ -25,7 +25,7 @@
 #ifndef ESPASYNCTCPBUFFER_H_
 #define ESPASYNCTCPBUFFER_H_
 
-#define DEBUG_ASYNC_TCP(...)  while(((U0S >> USTXC) & 0x7F) != 0x00); os_printf( __VA_ARGS__ );
+#define DEBUG_ASYNC_TCP(...)  while(((U0S >> USTXC) & 0x7F) != 0x00); os_printf( __VA_ARGS__ ); while(((U0S >> USTXC) & 0x7F) != 0x00)
 
 #ifndef DEBUG_ASYNC_TCP
 #define DEBUG_ASYNC_TCP(...)
@@ -36,8 +36,7 @@
 
 #include "ESPAsyncTCP.h"
 
-typedef std::function<size_t(uint8_t * payload, size_t length)> AsyncTCPbufferDataCb;
-typedef std::function<void(bool ok, void * ret)> AsyncTCPbufferDoneCb;
+
 
 typedef enum {
     ATB_RX_MODE_NONE,
@@ -47,12 +46,15 @@ typedef enum {
     ATB_RX_MODE_TERMINATOR_STRING
 } atbRxMode_t;
 
-class AsyncTCPbuffer: public Print, public AsyncClient {
+class AsyncTCPbuffer: public Print {
 
     public:
 
+        typedef std::function<size_t(uint8_t * payload, size_t length)> AsyncTCPbufferDataCb;
+        typedef std::function<void(bool ok, void * ret)> AsyncTCPbufferDoneCb;
+        typedef std::function<bool(AsyncTCPbuffer * obj)> AsyncTCPbufferDisconnectCb;
+
         AsyncTCPbuffer(AsyncClient* c);
-        AsyncTCPbuffer(tcp_pcb* pcb = 0);
         ~AsyncTCPbuffer();
 
         size_t write(String data);
@@ -77,8 +79,20 @@ class AsyncTCPbuffer: public Print, public AsyncClient {
         void setTimeout(size_t timeout);
 
         void onData(AsyncTCPbufferDataCb cb);
+        void onDisconnect(AsyncTCPbufferDisconnectCb cb);
+
+        IPAddress remoteIP();
+        uint16_t  remotePort();
+        IPAddress localIP();
+        uint16_t  localPort();
+
+        bool connected();
+
+        void stop();
+        void close();
 
     protected:
+        AsyncClient* _client;
         cbuf * _TXbuffer;
         cbuf * _RXbuffer;
         atbRxMode_t _RXmode;
@@ -89,6 +103,7 @@ class AsyncTCPbuffer: public Print, public AsyncClient {
 
         AsyncTCPbufferDataCb _cbRX;
         AsyncTCPbufferDoneCb _cbDone;
+        AsyncTCPbufferDisconnectCb _cbDisconnect;
 
         void _attachCallbacks();
         void _sendBuffer();
