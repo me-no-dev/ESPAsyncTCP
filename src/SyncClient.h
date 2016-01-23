@@ -35,8 +35,6 @@ class SyncClient: public Client {
 
     size_t _sendBuffer();
     void _onData(void *data, size_t len);
-    void _onError(int8_t error);
-    void _onTimeout(uint32_t time);
     void _onConnect(AsyncClient *c);
     void _onDisconnect(AsyncClient* c);
     void _attachCallbacks();

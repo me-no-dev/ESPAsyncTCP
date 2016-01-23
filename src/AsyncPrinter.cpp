@@ -147,7 +147,7 @@ void AsyncPrinter::_on_close(){
 void AsyncPrinter::_attachCallbacks(){
   _client->onPoll([](void *obj, AsyncClient* c){ ((AsyncPrinter*)(obj))->_sendBuffer(); }, this);
   _client->onAck([](void *obj, AsyncClient* c, size_t len, uint32_t time){ ((AsyncPrinter*)(obj))->_sendBuffer(); }, this);
-  _client->onDisconnect([](void *obj, AsyncClient* c){ ((AsyncPrinter*)(obj))->_on_close(); c->abort(); c->free(); delete c; }, this);
+  _client->onDisconnect([](void *obj, AsyncClient* c){ ((AsyncPrinter*)(obj))->_on_close(); c->free(); delete c; }, this);
   _client->onData([](void *obj, AsyncClient* c, void *data, size_t len){ ((AsyncPrinter*)(obj))->_onData(data, len); }, this);
 }
 
