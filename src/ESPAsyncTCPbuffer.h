@@ -76,7 +76,8 @@ class AsyncTCPbuffer: public Print {
         void readBytes(char *buffer, size_t length, AsyncTCPbufferDoneCb done);
         void readBytes(uint8_t *buffer, size_t length, AsyncTCPbufferDoneCb done);
 
-        void setTimeout(size_t timeout);
+        // TODO implement
+        // void setTimeout(size_t timeout);
 
         void onData(AsyncTCPbufferDataCb cb);
         void onDisconnect(AsyncTCPbufferDisconnectCb cb);

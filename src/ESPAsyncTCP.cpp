@@ -211,12 +211,16 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
 }
 
 void AsyncClient::_error(int8_t err) {
-  if(_error_cb)
+  if(_error_cb) {
     _error_cb(_error_cb_arg, this, err);
+  }
   if(err){
-    _pcb->state = (tcp_state)0;
-    if(_discard_cb)
+    if(_pcb) {
+      _pcb->state = (tcp_state)0;
+    }
+    if(_discard_cb) {
       _discard_cb(_discard_cb_arg, this);
+    }
   }
 }
 
