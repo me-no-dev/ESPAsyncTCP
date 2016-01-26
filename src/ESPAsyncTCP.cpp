@@ -276,7 +276,7 @@ int8_t AsyncClient::_s_poll(void *arg, struct tcp_pcb *tpcb) {
   return reinterpret_cast<AsyncClient*>(arg)->_poll(tpcb);
 }
 
-int8_t AsyncClient::_s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err) {
+int32_t AsyncClient::_s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err) {
   return reinterpret_cast<AsyncClient*>(arg)->_recv(tpcb, pb, err);
 }
 
