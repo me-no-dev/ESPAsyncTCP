@@ -69,7 +69,7 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
   if(pcb){
     tcp_setprio(_pcb, TCP_PRIO_MIN);
     tcp_arg(_pcb, this);
-    tcp_recv(_pcb, &_s_recv);
+    tcp_recv(_pcb, (tcp_recv_fn) &_s_recv);
     tcp_sent(_pcb, &_s_sent);
     tcp_err(_pcb, &_s_error);
     tcp_poll(_pcb, &_s_poll, 1);
@@ -116,7 +116,7 @@ AsyncClient& AsyncClient::operator=(const AsyncClient& other){
   _pcb = other._pcb;
   tcp_setprio(_pcb, TCP_PRIO_MIN);
   tcp_arg(_pcb, this);
-  tcp_recv(_pcb, &_s_recv);
+  tcp_recv(_pcb, (tcp_recv_fn) &_s_recv);
   tcp_sent(_pcb, &_s_sent);
   tcp_err(_pcb, &_s_error);
   tcp_poll(_pcb, &_s_poll, 1);
@@ -189,7 +189,7 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
   _pcb = reinterpret_cast<tcp_pcb*>(pcb);
   if(_pcb){
     tcp_setprio(_pcb, TCP_PRIO_MIN);
-    tcp_recv(_pcb, &_s_recv);
+    tcp_recv(_pcb, (tcp_recv_fn) &_s_recv);
     tcp_sent(_pcb, &_s_sent);
     tcp_poll(_pcb, &_s_poll, 1);
     _pcb_busy = false;
@@ -217,7 +217,7 @@ int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
   return ERR_OK;
 }
 
-int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
+int32_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   if(pb == 0){
     //os_printf("pb-null\n");
     return _close();
