@@ -23,15 +23,15 @@
 #define SYNCCLIENT_H_
 
 #include "Client.h"
-class ccbuf;
+class cbuf;
 class AsyncClient;
 
 class SyncClient: public Client {
   private:
     AsyncClient *_client;
-    ccbuf *_tx_buffer;
+    cbuf *_tx_buffer;
     size_t _tx_buffer_size;
-    ccbuf *_rx_buffer;
+    cbuf *_rx_buffer;
 
     size_t _sendBuffer();
     void _onData(void *data, size_t len);

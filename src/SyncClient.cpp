@@ -21,7 +21,7 @@
 #include "SyncClient.h"
 #include "Arduino.h"
 #include "ESPAsyncTCP.h"
-#include "ccbuf.h"
+#include "cbuf.h"
 
 
 SyncClient::SyncClient(size_t txBufLen)
@@ -33,7 +33,7 @@ SyncClient::SyncClient(size_t txBufLen)
 
 SyncClient::SyncClient(AsyncClient *client, size_t txBufLen)
   : _client(client)
-  , _tx_buffer(new ccbuf(txBufLen))
+  , _tx_buffer(new cbuf(txBufLen))
   , _tx_buffer_size(txBufLen)
   , _rx_buffer(NULL)
 {
@@ -42,12 +42,12 @@ SyncClient::SyncClient(AsyncClient *client, size_t txBufLen)
 
 SyncClient::~SyncClient(){
   if(_tx_buffer != NULL){
-    ccbuf *b = _tx_buffer;
+    cbuf *b = _tx_buffer;
     _tx_buffer = NULL;
     delete b;
   }
   while(_rx_buffer != NULL){
-    ccbuf *b = _rx_buffer;
+    cbuf *b = _rx_buffer;
     _rx_buffer = _rx_buffer->next;
     delete b;
   }
@@ -87,16 +87,16 @@ SyncClient & SyncClient::operator=(const SyncClient &other){
   }
   _tx_buffer_size = other._tx_buffer_size;
   if(_tx_buffer != NULL){
-    ccbuf *b = _tx_buffer;
+    cbuf *b = _tx_buffer;
     _tx_buffer = NULL;
     delete b;
   }
   while(_rx_buffer != NULL){
-    ccbuf *b = _rx_buffer;
+    cbuf *b = _rx_buffer;
     _rx_buffer = b->next;
     delete b;
   }
-  _tx_buffer = new ccbuf(other._tx_buffer_size);
+  _tx_buffer = new cbuf(other._tx_buffer_size);
   _client = other._client;
   _attachCallbacks();
   return *this;
@@ -137,13 +137,13 @@ size_t SyncClient::_sendBuffer(){
 }
 
 void SyncClient::_onData(void *data, size_t len){
-  ccbuf *b = new ccbuf(len);
+  cbuf *b = new cbuf(len);
   b->write((const char *)data, len);
   if(b != NULL){
     if(_rx_buffer == NULL)
       _rx_buffer = b;
     else {
-      ccbuf *p = _rx_buffer;
+      cbuf *p = _rx_buffer;
       while(p->next != NULL)
         p = p->next;
       p->next = b;
@@ -162,11 +162,11 @@ void SyncClient::_onDisconnect(AsyncClient* c){
 
 void SyncClient::_onConnect(AsyncClient *c){
   if(_tx_buffer != NULL){
-    ccbuf *b = _tx_buffer;
+    cbuf *b = _tx_buffer;
     _tx_buffer = NULL;
     delete b;
   }
-  _tx_buffer = new ccbuf(_tx_buffer_size);
+  _tx_buffer = new cbuf(_tx_buffer_size);
   _attachCallbacks();
 }
 
@@ -187,8 +187,8 @@ size_t SyncClient::write(const uint8_t *data, size_t len){
   }
   size_t toWrite = 0;
   size_t toSend = len;
-  while(_tx_buffer->free() < toSend){
-    toWrite = _tx_buffer->free();
+  while(_tx_buffer->room() < toSend){
+    toWrite = _tx_buffer->room();
     _tx_buffer->write((const char*)data, toWrite);
     while(!_client->canSend())
       delay(0);
@@ -204,7 +204,7 @@ size_t SyncClient::write(const uint8_t *data, size_t len){
 int SyncClient::available(){
   if(_rx_buffer == NULL) return 0;
   size_t a = 0;
-  ccbuf *b = _rx_buffer;
+  cbuf *b = _rx_buffer;
   while(b != NULL){
     a += b->available();
     b = b->next;
@@ -222,7 +222,7 @@ int SyncClient::read(uint8_t *data, size_t len){
 
   size_t readSoFar = 0;
   while(_rx_buffer != NULL && (len - readSoFar) >= _rx_buffer->available()){
-    ccbuf *b = _rx_buffer;
+    cbuf *b = _rx_buffer;
     _rx_buffer = _rx_buffer->next;
     size_t toRead = b->available();
     readSoFar += b->read((char*)(data+readSoFar), toRead);

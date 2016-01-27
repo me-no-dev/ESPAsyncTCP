@@ -24,7 +24,7 @@
 
 #include "Arduino.h"
 #include "ESPAsyncTCP.h"
-#include "ccbuf.h"
+#include "cbuf.h"
 
 class AsyncPrinter;
 
@@ -38,7 +38,7 @@ class AsyncPrinter: public Print {
     void *_data_arg;
     ApCloseHandler _close_cb;
     void *_close_arg;
-    ccbuf *_tx_buffer;
+    cbuf *_tx_buffer;
     size_t _tx_buffer_size;
   public:
     AsyncPrinter *next;
