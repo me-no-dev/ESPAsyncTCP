@@ -43,7 +43,7 @@ AsyncPrinter::AsyncPrinter(AsyncClient *client, size_t txBufLen)
   , next(NULL)
 {
   _attachCallbacks();
-  _tx_buffer = new ccbuf(_tx_buffer_size);
+  _tx_buffer = new cbuf(_tx_buffer_size);
 }
 
 AsyncPrinter::~AsyncPrinter(){
@@ -70,11 +70,11 @@ AsyncPrinter & AsyncPrinter::operator=(const AsyncPrinter &other){
   }
   _tx_buffer_size = other._tx_buffer_size;
   if(_tx_buffer != NULL){
-    ccbuf *b = _tx_buffer;
+    cbuf *b = _tx_buffer;
     _tx_buffer = NULL;
     delete b;
   }
-  _tx_buffer = new ccbuf(other._tx_buffer_size);
+  _tx_buffer = new cbuf(other._tx_buffer_size);
   _client = other._client;
   _attachCallbacks();
   return *this;
@@ -89,8 +89,8 @@ size_t AsyncPrinter::write(const uint8_t *data, size_t len){
     return 0;
   size_t toWrite = 0;
   size_t toSend = len;
-  while(_tx_buffer->free() < toSend){
-    toWrite = _tx_buffer->free();
+  while(_tx_buffer->room() < toSend){
+    toWrite = _tx_buffer->room();
     _tx_buffer->write((const char*)data, toWrite);
     while(!_client->canSend())
       delay(0);
@@ -136,7 +136,7 @@ void AsyncPrinter::_on_close(){
     _client = NULL;
   }
   if(_tx_buffer != NULL){
-    ccbuf *b = _tx_buffer;
+    cbuf *b = _tx_buffer;
     _tx_buffer = NULL;
     delete b;
   }
