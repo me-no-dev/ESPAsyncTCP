@@ -103,8 +103,9 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
         data += w;
 
         while(!_client->canSend()) {
-            delay(0);
+            optimistic_yield(1000);
         }
+
         _sendBuffer();
         free = _TXbuffer->room();
     }
@@ -284,6 +285,11 @@ void AsyncTCPbuffer::_attachCallbacks() {
         b->_rxData((uint8_t *)buf, len);
     }, this);
 
+    _client->onTimeout([](void *obj, AsyncClient* c, uint32_t time){
+        DEBUG_ASYNC_TCP("[A-TCP] onTimeout\n");
+        c->close();
+    }, this);
+
     DEBUG_ASYNC_TCP("[A-TCP] attachCallbacks Done.\n");
 }
 
@@ -292,7 +298,7 @@ void AsyncTCPbuffer::_attachCallbacks() {
  */
 void AsyncTCPbuffer::_sendBuffer() {
     //DEBUG_ASYNC_TCP("[A-TCP] _sendBuffer...\n");
-    size_t available = _TXbuffer->getSize();
+    size_t available = _TXbuffer->available();
     if(available == 0 || _client == NULL || !_client->connected() || !_client->canSend()) {
         return;
     }
@@ -389,7 +395,7 @@ size_t AsyncTCPbuffer::_handleRxBuffer(uint8_t *buf, size_t len) {
 
     DEBUG_ASYNC_TCP("[A-TCP] _handleRxBuffer len: %d RXmode: %d\n", len, _RXmode);
 
-    size_t BufferAvailable = _RXbuffer->getSize();
+    size_t BufferAvailable = _RXbuffer->available();
     size_t r = 0;
 
     if(_RXmode == ATB_RX_MODE_NONE) {
