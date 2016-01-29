@@ -268,13 +268,13 @@ void AsyncTCPbuffer::_attachCallbacks() {
     _client->onDisconnect([](void *obj, AsyncClient* c) {
         DEBUG_ASYNC_TCP("[A-TCP] onDisconnect\n");
         AsyncTCPbuffer* b = ((AsyncTCPbuffer*)(obj));
-        c->free();
-        delete c;
         b->_client = NULL;
         bool del = true;
         if(b->_cbDisconnect) {
             del = b->_cbDisconnect(b);
         }
+        c->free();
+        delete c;
         if(del) {
             delete b;
         }
