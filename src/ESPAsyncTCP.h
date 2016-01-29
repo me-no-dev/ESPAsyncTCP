@@ -45,7 +45,8 @@ struct tcp_pcb;
 struct pbuf;
 
 class AsyncClient {
-  private:
+  protected:
+    friend class AsyncTCPbuffer;
     tcp_pcb* _pcb;
     AcConnectHandler _connect_cb;
     void* _connect_cb_arg;
@@ -99,12 +100,14 @@ class AsyncClient {
     bool connect(IPAddress ip, uint16_t port);
     bool connect(const char* host, uint16_t port);
     void close();
+    void stop();
     //int8_t _close();
     int8_t abort();
     bool free();
 
     bool canSend();//ack is not pending
     size_t space();
+    size_t write(const char* data);
     size_t write(const char* data, size_t size); //only when canSend() == true
 
     uint8_t state();
@@ -123,6 +126,10 @@ class AsyncClient {
     uint32_t getLocalAddress();
     uint16_t getLocalPort();
 
+    IPAddress remoteIP();
+    uint16_t  remotePort();
+    IPAddress localIP();
+    uint16_t  localPort();
 
     void onConnect(AcConnectHandler cb, void* arg = 0);     //on successful connect
     void onDisconnect(AcConnectHandler cb, void* arg = 0);  //disconnected
@@ -137,7 +144,7 @@ class AsyncClient {
 };
 
 class AsyncServer {
-  private:
+  protected:
     uint16_t _port;
     IPAddress _addr;
     tcp_pcb* _pcb;

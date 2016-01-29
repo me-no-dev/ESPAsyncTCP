@@ -134,6 +134,10 @@ void AsyncClient::close(){
   _close_pcb = true;
 }
 
+void AsyncClient::stop() {
+    close();
+}
+
 bool AsyncClient::free(){
   if(!_pcb)
     return true;
@@ -150,8 +154,15 @@ bool AsyncClient::free(){
   return false;
 }
 
+size_t AsyncClient::write(const char* data) {
+    if(data == NULL) {
+        return 0;
+    }
+    return write(data, strlen(data));
+}
+
 size_t AsyncClient::write(const char* data, size_t size) {
-  if(!_pcb || size == 0)
+  if(!_pcb || size == 0 || data == NULL)
     return 0;
   if(!canSend())
     return 0;
@@ -200,12 +211,16 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
 }
 
 void AsyncClient::_error(int8_t err) {
-  if(_error_cb)
+  if(_error_cb) {
     _error_cb(_error_cb_arg, this, err);
+  }
   if(err){
-    _pcb->state = (tcp_state)0;
-    if(_discard_cb)
+    if(_pcb) {
+      _pcb->state = (tcp_state)0;
+    }
+    if(_discard_cb) {
       _discard_cb(_discard_cb_arg, this);
+    }
   }
 }
 
@@ -362,6 +377,34 @@ uint32_t AsyncClient::getLocalAddress() {
 uint16_t AsyncClient::getLocalPort() {
   if(!_pcb) return 0;
   return _pcb->local_port;
+}
+
+IPAddress AsyncClient::remoteIP() {
+    if(!_pcb) {
+        return IPAddress(0U);
+    }
+    return IPAddress(_pcb->remote_ip.addr);
+}
+
+uint16_t AsyncClient::remotePort() {
+    if(!_pcb) {
+        return 0;
+    }
+    return _pcb->remote_port;
+}
+
+IPAddress AsyncClient::localIP() {
+    if(!_pcb) {
+        return IPAddress(0U);
+    }
+    return IPAddress(_pcb->local_ip.addr);
+}
+
+uint16_t AsyncClient::localPort() {
+    if(!_pcb) {
+        return 0;
+    }
+    return _pcb->local_port;
 }
 
 uint8_t AsyncClient::state() {
