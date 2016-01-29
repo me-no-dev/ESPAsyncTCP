@@ -25,7 +25,7 @@
 #ifndef ESPASYNCTCPBUFFER_H_
 #define ESPASYNCTCPBUFFER_H_
 
-#define DEBUG_ASYNC_TCP(...)  while(((U0S >> USTXC) & 0x7F) != 0x00); os_printf( __VA_ARGS__ ); while(((U0S >> USTXC) & 0x7F) != 0x00)
+//#define DEBUG_ASYNC_TCP(...)  while(((U0S >> USTXC) & 0x7F) != 0x00); os_printf( __VA_ARGS__ ); while(((U0S >> USTXC) & 0x7F) != 0x00)
 
 #ifndef DEBUG_ASYNC_TCP
 #define DEBUG_ASYNC_TCP(...)
