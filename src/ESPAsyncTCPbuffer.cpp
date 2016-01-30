@@ -103,7 +103,7 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
         data += w;
 
         while(!_client->canSend()) {
-            optimistic_yield(1000);
+            optimistic_yield(10000);
         }
 
         _sendBuffer();
