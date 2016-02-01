@@ -130,12 +130,15 @@ int8_t AsyncClient::abort(){
   return ERR_ABRT;
 }
 
-void AsyncClient::close(){
-  _close_pcb = true;
+void AsyncClient::close(bool now){
+  if(now)
+    _close();
+  else
+    _close_pcb = true;
 }
 
 void AsyncClient::stop() {
-    close();
+    close(false);
 }
 
 bool AsyncClient::free(){
