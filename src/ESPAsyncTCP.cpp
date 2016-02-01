@@ -386,7 +386,11 @@ IPAddress AsyncClient::remoteIP() {
     if(!_pcb) {
         return IPAddress(0U);
     }
-    return IPAddress(_pcb->remote_ip.addr);
+#ifdef ESP8266
+  return IPAddress(_pcb->remote_ip.addr);
+#else
+  return IPAddress(_pcb->remote_ip.ip4.addr);
+#endif
 }
 
 uint16_t AsyncClient::remotePort() {
@@ -400,7 +404,11 @@ IPAddress AsyncClient::localIP() {
     if(!_pcb) {
         return IPAddress(0U);
     }
-    return IPAddress(_pcb->local_ip.addr);
+#ifdef ESP8266
+  return IPAddress(_pcb->local_ip.addr);
+#else
+  return IPAddress(_pcb->local_ip.ip4.addr);
+#endif
 }
 
 uint16_t AsyncClient::localPort() {
