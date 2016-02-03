@@ -40,7 +40,8 @@ AsyncTCPbuffer::AsyncTCPbuffer(AsyncClient* client) {
     }
 
     _client = client;
-    _TXbuffer = new cbuf(1460);
+    _TXbufferWrite = new cbuf(1460);
+    _TXbufferRead = _TXbufferWrite;
     _RXbuffer = new cbuf(100);
     _RXmode = ATB_RX_MODE_FREE;
     _rxSize = 0;
@@ -63,13 +64,25 @@ AsyncTCPbuffer::~AsyncTCPbuffer() {
         delete _RXbuffer;
         _RXbuffer = NULL;
     }
-    if(_TXbuffer) {
-        delete _TXbuffer;
-        _TXbuffer = NULL;
+
+    if(_TXbufferWrite) {
+        // will be deleted in _TXbufferRead chain
+        _TXbufferWrite = NULL;
+    }
+
+    if(_TXbufferRead) {
+        cbuf * next = _TXbufferRead->next;
+        delete _TXbufferRead;
+        while(next != NULL) {
+            _TXbufferRead = next;
+            next = _TXbufferRead->next;
+            delete _TXbufferRead;
+        }
+        _TXbufferRead = NULL;
     }
 }
 
-size_t AsyncTCPbuffer::write(String data) {
+size_t AsyncTCPbuffer::write(String & data) {
     return write(data.c_str(), data.length());
 }
 
@@ -92,30 +105,37 @@ size_t AsyncTCPbuffer::write(const char *data, size_t len) {
  * @return
  */
 size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
-    if(_TXbuffer == NULL || _client == NULL || !_client->connected() || data == NULL || len == 0) {
+    if(_TXbufferWrite == NULL || _client == NULL || !_client->connected() || data == NULL || len == 0) {
         return 0;
     }
 
     size_t bytesLeft = len;
-    size_t free = _TXbuffer->room();
-
-    while(free < bytesLeft) {
-
-        size_t w = (bytesLeft - free);
-        w = _TXbuffer->write((const char*) data, w);
+    while(bytesLeft) {
+        size_t w = _TXbufferWrite->write((const char*) data, bytesLeft);
         bytesLeft -= w;
         data += w;
-
-        while(!_client->canSend()) {
-            optimistic_yield(10000);
-        }
-
         _sendBuffer();
-        free = _TXbuffer->room();
+
+        // add new buffer since we have more data
+        if(_TXbufferWrite->full() && bytesLeft > 0) {
+
+            cbuf * next = new cbuf(1460);
+
+            if(next == NULL) {
+                DEBUG_ASYNC_TCP("[A-TCP] run out of Heap!\n");
+                panic();
+            } else {
+                DEBUG_ASYNC_TCP("[A-TCP] new cbuf\n");
+            }
+
+            // add new buffer to chain (current cbuf)
+            _TXbufferWrite->next = next;
+
+            // move ptr for next data
+            _TXbufferWrite = next;
+        }
     }
 
-    _TXbuffer->write((const char*) data, bytesLeft);
-    _sendBuffer();
     return len;
 
 }
@@ -124,7 +144,7 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
  * wait until all data has send out
  */
 void AsyncTCPbuffer::flush() {
-    while(!_TXbuffer->empty()) {
+    while(!_TXbufferWrite->empty()) {
         while(!_client->canSend()) {
             delay(0);
         }
@@ -256,7 +276,7 @@ void AsyncTCPbuffer::_attachCallbacks() {
 
     _client->onPoll([](void *obj, AsyncClient* c) {
         AsyncTCPbuffer* b = ((AsyncTCPbuffer*)(obj));
-        if(!b->_TXbuffer->empty()) {
+        if((b->_TXbufferRead != NULL) && !b->_TXbufferRead->empty()) {
             b->_sendBuffer();
         }
         //    if(!b->_RXbuffer->empty()) {
@@ -302,28 +322,48 @@ void AsyncTCPbuffer::_attachCallbacks() {
  */
 void AsyncTCPbuffer::_sendBuffer() {
     //DEBUG_ASYNC_TCP("[A-TCP] _sendBuffer...\n");
-    size_t available = _TXbuffer->available();
+    size_t available = _TXbufferRead->available();
     if(available == 0 || _client == NULL || !_client->connected() || !_client->canSend()) {
         return;
     }
 
-    if(available > _client->space()) {
-        available = _client->space();
+    while((_client->space() > 0) && (_TXbufferRead->available() > 0) && _client->canSend()) {
+
+        available = _TXbufferRead->available();
+
+        if(available > _client->space()) {
+            available = _client->space();
+        }
+
+        char *out = new char[available];
+        if(out == NULL) {
+            DEBUG_ASYNC_TCP("[A-TCP] to less heap, try later.\n");
+            return;
+        }
+
+        // read data from buffer
+        _TXbufferRead->peek(out, available);
+
+        // send data
+        size_t send = _client->write((const char*) out, available);
+        if(send != available) {
+            DEBUG_ASYNC_TCP("[A-TCP] write failed send: %d available: %d \n", send, available);
+        }
+
+        // remove really send data from buffer
+        _TXbufferRead->remove(send);
+
+        // if buffer is empty and there is a other buffer in chain delete the empty one
+        if(_TXbufferRead->available() == 0 && _TXbufferRead->next != NULL) {
+            cbuf * old = _TXbufferRead;
+            _TXbufferRead = _TXbufferRead->next;
+            delete old;
+            DEBUG_ASYNC_TCP("[A-TCP] delete cbuf\n");
+        }
+
+        delete out;
     }
 
-    char *out = new char[available];
-    if(out == NULL) {
-        DEBUG_ASYNC_TCP("[A-TCP] to less heap\n");
-        return;
-    }
-    _TXbuffer->read(out, available);
-
-    size_t send = _client->write((const char*) out, available);
-    if(send != available) {
-        DEBUG_ASYNC_TCP("[A-TCP] write failed\n");
-    }
-
-    delete out;
 }
 
 /**

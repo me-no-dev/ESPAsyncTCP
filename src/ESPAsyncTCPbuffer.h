@@ -57,7 +57,7 @@ class AsyncTCPbuffer: public Print {
         AsyncTCPbuffer(AsyncClient* c);
         ~AsyncTCPbuffer();
 
-        size_t write(String data);
+        size_t write(String & data);
         size_t write(uint8_t data);
         size_t write(const char* data);
         size_t write(const char *data, size_t len);
@@ -94,7 +94,8 @@ class AsyncTCPbuffer: public Print {
 
     protected:
         AsyncClient* _client;
-        cbuf * _TXbuffer;
+        cbuf * _TXbufferRead;
+        cbuf * _TXbufferWrite;
         cbuf * _RXbuffer;
         atbRxMode_t _RXmode;
         size_t _rxSize;
