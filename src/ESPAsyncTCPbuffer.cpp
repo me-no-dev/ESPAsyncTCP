@@ -71,12 +71,13 @@ AsyncTCPbuffer::~AsyncTCPbuffer() {
     }
 
     if(_TXbufferRead) {
-        cbuf * next =_TXbufferRead->next;
+        cbuf * next = _TXbufferRead->next;
+        delete _TXbufferRead;
         while(next != NULL) {
-            next =_TXbufferRead->next;
+            _TXbufferRead = next;
+            next = _TXbufferRead->next;
             delete _TXbufferRead;
         }
-        delete _TXbufferRead;
         _TXbufferRead = NULL;
     }
 }
