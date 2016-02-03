@@ -98,8 +98,8 @@ size_t AsyncPrinter::write(const uint8_t *data, size_t len){
     toSend -= toWrite;
   }
   _tx_buffer->write((const char*)(data+(len - toSend)), toSend);
-  if(_client->canSend())
-    _sendBuffer();
+  while(!_client->canSend()) delay(0);
+  _sendBuffer();
   return len;
 }
 

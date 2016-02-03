@@ -130,12 +130,15 @@ int8_t AsyncClient::abort(){
   return ERR_ABRT;
 }
 
-void AsyncClient::close(){
-  _close_pcb = true;
+void AsyncClient::close(bool now){
+  if(now)
+    _close();
+  else
+    _close_pcb = true;
 }
 
 void AsyncClient::stop() {
-    close();
+    close(false);
 }
 
 bool AsyncClient::free(){
@@ -383,7 +386,11 @@ IPAddress AsyncClient::remoteIP() {
     if(!_pcb) {
         return IPAddress(0U);
     }
-    return IPAddress(_pcb->remote_ip.addr);
+#ifdef ESP8266
+  return IPAddress(_pcb->remote_ip.addr);
+#else
+  return IPAddress(_pcb->remote_ip.ip4.addr);
+#endif
 }
 
 uint16_t AsyncClient::remotePort() {
@@ -397,7 +404,11 @@ IPAddress AsyncClient::localIP() {
     if(!_pcb) {
         return IPAddress(0U);
     }
-    return IPAddress(_pcb->local_ip.addr);
+#ifdef ESP8266
+  return IPAddress(_pcb->local_ip.addr);
+#else
+  return IPAddress(_pcb->local_ip.ip4.addr);
+#endif
 }
 
 uint16_t AsyncClient::localPort() {
