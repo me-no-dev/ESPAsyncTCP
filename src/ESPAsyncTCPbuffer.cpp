@@ -119,6 +119,12 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
         // add new buffer since we have more data
         if(_TXbufferWrite->full() && bytesLeft > 0) {
 
+            // to less ram!!!
+            if(ESP.getFreeHeap() < 4096) {
+                DEBUG_ASYNC_TCP("[A-TCP] run out of Heap can not send all Data!\n");
+                return (len - bytesLeft);
+            }
+
             cbuf * next = new cbuf(1460);
 
             if(next == NULL) {
