@@ -562,6 +562,7 @@ AsyncServer::AsyncServer(IPAddress addr, uint16_t port)
 AsyncServer::AsyncServer(uint16_t port)
   : _port(port)
   , _addr((uint32_t) IPADDR_ANY)
+  , _noDelay(false)
   , _pcb(0)
   , _connect_cb(0)
   , _connect_cb_arg(0)
@@ -613,18 +614,11 @@ void AsyncServer::end(){
 }
 
 void AsyncServer::setNoDelay(bool nodelay){
-  if (!_pcb)
-    return;
-  if (nodelay)
-    tcp_nagle_disable(_pcb);
-  else
-    tcp_nagle_enable(_pcb);
+  _noDelay = nodelay;
 }
 
 bool AsyncServer::getNoDelay(){
-  if (!_pcb)
-    return false;
-  return tcp_nagle_disabled(_pcb);
+  return _noDelay;
 }
 
 uint8_t AsyncServer::status(){
@@ -634,8 +628,13 @@ uint8_t AsyncServer::status(){
 }
 
 int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
-  if(_connect_cb)
+  if(_connect_cb){
+    if (_noDelay)
+      tcp_nagle_disable(_pcb);
+    else
+      tcp_nagle_enable(_pcb);
     _connect_cb(_connect_cb_arg, new AsyncClient(pcb));
+  }
   return ERR_OK;
 }
 
