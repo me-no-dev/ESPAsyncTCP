@@ -142,7 +142,7 @@ void AsyncClient::stop() {
 }
 
 bool AsyncClient::free(){
-  if(!_pcb)
+  if(_pcb == NULL)
     return true;
   if(_pcb->state == 0 || _pcb->state > 4){
     tcp_arg(_pcb, NULL);
@@ -214,9 +214,12 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
 }
 
 void AsyncClient::_error(int8_t err) {
+  os_printf("ERROR[%d] %s :: 0x%08X\n", err, errorToString(err), (uint32_t)_pcb);
   if(_error_cb) {
     _error_cb(_error_cb_arg, this, err);
   }
+  if(err == ERR_RST)
+    _pcb = NULL;
   if(err){
     if(_pcb) {
       _pcb->state = (tcp_state)0;
@@ -237,8 +240,15 @@ int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
 
 int32_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   if(pb == 0){
-    //os_printf("pb-null\n");
-    return _close();
+    os_printf("pb-null\n");
+    int8_t err = ERR_OK;
+    if(_pcb) {
+      err = tcp_close(_pcb);
+      _pcb = NULL;
+      if(_discard_cb)
+        _discard_cb(_discard_cb_arg, this);
+    }
+    return err;
   }
 
   _rx_last_packet = millis();
@@ -454,7 +464,7 @@ bool AsyncClient::freeable(){
 }
 
 bool AsyncClient::canSend(){
-  return _pcb && _pcb->state == 4 && !_pcb_busy;
+  return _pcb != NULL && _pcb->state == 4 && !_pcb_busy;
 }
 
 
@@ -517,15 +527,14 @@ const char * AsyncClient::errorToString(int8_t error){
     case -5: return "Operation in progress";
     case -6: return "Illegal value";
     case -7: return "Operation would block";
-    case -8: return "Address in use";
-    case -9: return "Already connected";
-    case -10: return "Conn already established";
-    case -11: return "Connection aborted";
-    case -12: return "Connection reset";
-    case -13: return "Connection closed";
-    case -14: return "Not connected";
-    case -15: return "Illegal argument";
-    case -16: return "Low-level netif error";
+    case -8: return "Connection aborted";
+    case -9: return "Connection reset";
+    case -10: return "Connection closed";
+    case -11: return "Not connected";
+    case -12: return "Illegal argument";
+    case -13: return "Address in use";
+    case -14: return "Low-level netif error";
+    case -15: return "Already connected";
     default: return "UNKNOWN";
   }
 }

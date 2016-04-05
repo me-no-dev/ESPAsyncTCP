@@ -190,13 +190,13 @@ size_t SyncClient::write(const uint8_t *data, size_t len){
   while(_tx_buffer->room() < toSend){
     toWrite = _tx_buffer->room();
     _tx_buffer->write((const char*)data, toWrite);
-    while(!_client->canSend())
+    while(!_client->canSend() && connected())
       delay(0);
     _sendBuffer();
     toSend -= toWrite;
   }
   _tx_buffer->write((const char*)(data+(len - toSend)), toSend);
-  if(_client->canSend())
+  if(_client->canSend() && connected())
     _sendBuffer();
   return len;
 }
@@ -244,10 +244,10 @@ int SyncClient::read(){
 void SyncClient::flush(){
   if(_tx_buffer == NULL || !connected())
     return;
-  while(_tx_buffer->available() || !_client->canSend()){
-    if(_tx_buffer->available() && _client->canSend())
-      _sendBuffer();
-    delay(0);
+  if(_tx_buffer->available()){
+    while(!_client->canSend() && connected())
+      delay(0);
+    _sendBuffer();
   }
 }
 
