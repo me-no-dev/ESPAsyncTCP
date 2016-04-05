@@ -243,6 +243,11 @@ int32_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
     os_printf("pb-null\n");
     int8_t err = ERR_OK;
     if(_pcb) {
+      tcp_arg(_pcb, NULL);
+      tcp_sent(_pcb, NULL);
+      tcp_recv(_pcb, NULL);
+      tcp_err(_pcb, NULL);
+      tcp_poll(_pcb, NULL, 0);
       err = tcp_close(_pcb);
       _pcb = NULL;
       if(_discard_cb)
