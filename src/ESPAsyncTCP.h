@@ -74,9 +74,9 @@ class AsyncClient {
     void _error(int8_t err);
     int8_t _poll(tcp_pcb* pcb);
     int8_t _sent(tcp_pcb* pcb, uint16_t len);
-    int32_t _recv(tcp_pcb* pcb, pbuf* pb, int8_t err);
+    int8_t _recv(tcp_pcb* pcb, pbuf* pb, int8_t err);
     static int8_t _s_poll(void *arg, struct tcp_pcb *tpcb);
-    static int32_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
+    static int8_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
     static void _s_error(void *arg, int8_t err);
     static int8_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
     static int8_t _s_connected(void* arg, void* tpcb, int8_t err);
@@ -101,7 +101,6 @@ class AsyncClient {
     bool connect(const char* host, uint16_t port);
     void close(bool now = false);
     void stop();
-    //int8_t _close();
     int8_t abort();
     bool free();
 
