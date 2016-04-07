@@ -66,10 +66,10 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
   , next(NULL)
 {
   _pcb = pcb;
-  if(pcb){
+  if(_pcb){
     tcp_setprio(_pcb, TCP_PRIO_MIN);
     tcp_arg(_pcb, this);
-    tcp_recv(_pcb, (tcp_recv_fn) &_s_recv);
+    tcp_recv(_pcb, &_s_recv);
     tcp_sent(_pcb, &_s_sent);
     tcp_err(_pcb, &_s_error);
     tcp_poll(_pcb, &_s_poll, 1);
@@ -77,23 +77,20 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
 }
 
 AsyncClient::~AsyncClient(){
-  if (_pcb){
+  if(_pcb)
     _close();
-  }
 }
 
 bool AsyncClient::connect(IPAddress ip, uint16_t port){
   ip_addr_t addr;
   addr.addr = ip;
 
-  if (_pcb){
+  if (_pcb)
     return false;
-  }
 
   netif* interface = ip_route(&addr);
-  if (!interface){
+  if (!interface)
     return false;
-  }
 
   tcp_pcb* pcb = tcp_new();
   if (!pcb)
@@ -108,23 +105,34 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
 }
 
 AsyncClient& AsyncClient::operator=(const AsyncClient& other){
-  if (_pcb){
+  if (_pcb)
     _close();
-  }
+
   _pcb = other._pcb;
-  tcp_setprio(_pcb, TCP_PRIO_MIN);
-  tcp_arg(_pcb, this);
-  tcp_recv(_pcb, (tcp_recv_fn) &_s_recv);
-  tcp_sent(_pcb, &_s_sent);
-  tcp_err(_pcb, &_s_error);
-  tcp_poll(_pcb, &_s_poll, 1);
+  if (_pcb) {
+    tcp_setprio(_pcb, TCP_PRIO_MIN);
+    tcp_arg(_pcb, this);
+    tcp_recv(_pcb, &_s_recv);
+    tcp_sent(_pcb, &_s_sent);
+    tcp_err(_pcb, &_s_error);
+    tcp_poll(_pcb, &_s_poll, 1);
+  }
   return *this;
 }
 
+bool AsyncClient::operator==(const AsyncClient &other) {
+#ifdef ESP8266
+  return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.addr == other._pcb->remote_ip.addr) && (_pcb->remote_port == other._pcb->remote_port));
+#else
+  return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.ip4.addr == other._pcb->remote_ip.ip4.addr) && (_pcb->remote_port == other._pcb->remote_port));
+#endif
+}
 
 int8_t AsyncClient::abort(){
-  if(_pcb)
+  if(_pcb) {
     tcp_abort(_pcb);
+    _pcb = NULL;
+  }
   return ERR_ABRT;
 }
 
@@ -136,23 +144,21 @@ void AsyncClient::close(bool now){
 }
 
 void AsyncClient::stop() {
-    close(false);
+  close(false);
 }
 
 bool AsyncClient::free(){
-  if(_pcb == NULL)
+  if(!_pcb)
     return true;
-  if(_pcb->state == 0 || _pcb->state > 4){
+  if(_pcb->state == 0 || _pcb->state > 4)
     return true;
-  }
   return false;
 }
 
 size_t AsyncClient::write(const char* data) {
-    if(data == NULL) {
-        return 0;
-    }
-    return write(data, strlen(data));
+  if(data == NULL)
+    return 0;
+  return write(data, strlen(data));
 }
 
 size_t AsyncClient::write(const char* data, size_t size) {
@@ -200,7 +206,7 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
   _pcb = reinterpret_cast<tcp_pcb*>(pcb);
   if(_pcb){
     tcp_setprio(_pcb, TCP_PRIO_MIN);
-    tcp_recv(_pcb, (tcp_recv_fn) &_s_recv);
+    tcp_recv(_pcb, &_s_recv);
     tcp_sent(_pcb, &_s_sent);
     tcp_poll(_pcb, &_s_poll, 1);
     _pcb_busy = false;
@@ -211,7 +217,6 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
 }
 
 void AsyncClient::_error(int8_t err) {
-  //os_printf("ERROR[%d] %s :: 0x%08X\n", err, errorToString(err), (uint32_t)_pcb);
   if(_pcb){
     tcp_arg(_pcb, NULL);
     tcp_sent(_pcb, NULL);
@@ -220,12 +225,10 @@ void AsyncClient::_error(int8_t err) {
     tcp_poll(_pcb, NULL, 0);
     _pcb = NULL;
   }
-  if(_error_cb) {
+  if(_error_cb)
     _error_cb(_error_cb_arg, this, err);
-  }
-  if(_discard_cb) {
+  if(_discard_cb)
     _discard_cb(_discard_cb_arg, this);
-  }
 }
 
 int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
@@ -236,7 +239,7 @@ int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
   return ERR_OK;
 }
 
-int32_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
+int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   if(pb == 0){
     //os_printf("pb-null\n");
     int8_t err = ERR_OK;
@@ -246,6 +249,7 @@ int32_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
       tcp_recv(_pcb, NULL);
       tcp_err(_pcb, NULL);
       tcp_poll(_pcb, NULL, 0);
+      // TODO handle tcp_close != ERR_OK
       err = tcp_close(_pcb);
       _pcb = NULL;
       if(_discard_cb)
@@ -255,23 +259,23 @@ int32_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   }
 
   _rx_last_packet = millis();
-    //use callback (onData defined)
-    while(pb != NULL){
-      if(pb->next == NULL){
-        if(_recv_cb)
-          _recv_cb(_recv_cb_arg, this, pb->payload, pb->len);
-        tcp_recved(pcb, pb->len);
-        pbuf_free(pb);
-        pb = NULL;
-      } else {
-        pbuf *b = pb;
-        pb = pbuf_dechain(b);
-        if(_recv_cb)
-          _recv_cb(_recv_cb_arg, this, b->payload, b->len);
-        tcp_recved(pcb, b->len);
-        pbuf_free(b);
-      }
+  //use callback (onData defined)
+  while(pb != NULL){
+    if(pb->next == NULL){
+      if(_recv_cb)
+        _recv_cb(_recv_cb_arg, this, pb->payload, pb->len);
+      tcp_recved(pcb, pb->len);
+      pbuf_free(pb);
+      pb = NULL;
+    } else {
+      pbuf *b = pb;
+      pb = pbuf_dechain(b);
+      if(_recv_cb)
+        _recv_cb(_recv_cb_arg, this, b->payload, b->len);
+      tcp_recved(pcb, b->len);
+      pbuf_free(b);
     }
+  }
   return ERR_OK;
 }
 
@@ -307,7 +311,7 @@ int8_t AsyncClient::_s_poll(void *arg, struct tcp_pcb *tpcb) {
   return reinterpret_cast<AsyncClient*>(arg)->_poll(tpcb);
 }
 
-int32_t AsyncClient::_s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err) {
+int8_t AsyncClient::_s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err) {
   return reinterpret_cast<AsyncClient*>(arg)->_recv(tpcb, pb, err);
 }
 
@@ -357,18 +361,23 @@ uint32_t AsyncClient::getRxTimeout(){
 }
 
 void AsyncClient::setNoDelay(bool nodelay){
-  if(!_pcb) return;
-  if(nodelay) tcp_nagle_disable(_pcb);
-  else tcp_nagle_enable(_pcb);
+  if(!_pcb)
+    return;
+  if(nodelay)
+    tcp_nagle_disable(_pcb);
+  else
+    tcp_nagle_enable(_pcb);
 }
 
 bool AsyncClient::getNoDelay(){
-  if(!_pcb) return false;
+  if(!_pcb)
+    return false;
   return tcp_nagle_disabled(_pcb);
 }
 
 uint32_t AsyncClient::getRemoteAddress() {
-  if(!_pcb) return 0;
+  if(!_pcb)
+    return 0;
 #ifdef ESP8266
   return _pcb->remote_ip.addr;
 #else
@@ -377,12 +386,14 @@ uint32_t AsyncClient::getRemoteAddress() {
 }
 
 uint16_t AsyncClient::getRemotePort() {
-  if(!_pcb) return 0;
+  if(!_pcb)
+    return 0;
   return _pcb->remote_port;
 }
 
 uint32_t AsyncClient::getLocalAddress() {
-  if(!_pcb) return 0;
+  if(!_pcb)
+    return 0;
 #ifdef ESP8266
   return _pcb->local_ip.addr;
 #else
@@ -391,14 +402,14 @@ uint32_t AsyncClient::getLocalAddress() {
 }
 
 uint16_t AsyncClient::getLocalPort() {
-  if(!_pcb) return 0;
+  if(!_pcb)
+    return 0;
   return _pcb->local_port;
 }
 
 IPAddress AsyncClient::remoteIP() {
-    if(!_pcb) {
-        return IPAddress(0U);
-    }
+  if(!_pcb)
+    return IPAddress(0U);
 #ifdef ESP8266
   return IPAddress(_pcb->remote_ip.addr);
 #else
@@ -407,16 +418,14 @@ IPAddress AsyncClient::remoteIP() {
 }
 
 uint16_t AsyncClient::remotePort() {
-    if(!_pcb) {
-        return 0;
-    }
-    return _pcb->remote_port;
+  if(!_pcb)
+    return 0;
+  return _pcb->remote_port;
 }
 
 IPAddress AsyncClient::localIP() {
-    if(!_pcb) {
-        return IPAddress(0U);
-    }
+  if(!_pcb)
+    return IPAddress(0U);
 #ifdef ESP8266
   return IPAddress(_pcb->local_ip.addr);
 #else
@@ -425,14 +434,14 @@ IPAddress AsyncClient::localIP() {
 }
 
 uint16_t AsyncClient::localPort() {
-    if(!_pcb) {
-        return 0;
-    }
-    return _pcb->local_port;
+  if(!_pcb)
+    return 0;
+  return _pcb->local_port;
 }
 
 uint8_t AsyncClient::state() {
-  if(!_pcb) return 0;
+  if(!_pcb)
+    return 0;
   return _pcb->state;
 }
 
@@ -508,15 +517,6 @@ void AsyncClient::onPoll(AcConnectHandler cb, void* arg){
   _poll_cb_arg = arg;
 }
 
-
-bool AsyncClient::operator==(const AsyncClient &other) {
-#ifdef ESP8266
-  return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.addr == other._pcb->remote_ip.addr) && (_pcb->remote_port == other._pcb->remote_port));
-#else
-  return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.ip4.addr == other._pcb->remote_ip.ip4.addr) && (_pcb->remote_port == other._pcb->remote_port));
-#endif
-
-}
 
 size_t AsyncClient::space(){ return tcp_sndbuf(_pcb);}
 
