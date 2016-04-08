@@ -642,12 +642,15 @@ uint8_t AsyncServer::status(){
 }
 
 int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
-  if(_connect_cb){
+  AsyncClient *c = new AsyncClient(pcb);
+  if(c && _connect_cb){
     if (_noDelay)
-      tcp_nagle_disable(_pcb);
+      tcp_nagle_disable(pcb);
     else
-      tcp_nagle_enable(_pcb);
-    _connect_cb(_connect_cb_arg, new AsyncClient(pcb));
+      tcp_nagle_enable(pcb);
+    _connect_cb(_connect_cb_arg, c);
+  } else if(tcp_close(pcb) != ERR_OK){
+    tcp_abort(pcb);
   }
   return ERR_OK;
 }
