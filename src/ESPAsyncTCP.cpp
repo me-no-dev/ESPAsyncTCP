@@ -241,7 +241,6 @@ int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
 
 int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   if(pb == 0){
-    //os_printf("pb-null\n");
     int8_t err = ERR_OK;
     if(_pcb) {
       tcp_arg(_pcb, NULL);
@@ -249,8 +248,10 @@ int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
       tcp_recv(_pcb, NULL);
       tcp_err(_pcb, NULL);
       tcp_poll(_pcb, NULL, 0);
-      // TODO handle tcp_close != ERR_OK
       err = tcp_close(_pcb);
+      if(err != ERR_OK) {
+        err = abort();
+      }
       _pcb = NULL;
       if(_discard_cb)
         _discard_cb(_discard_cb_arg, this);
@@ -566,6 +567,7 @@ const char * AsyncClient::stateToString(){
 AsyncServer::AsyncServer(IPAddress addr, uint16_t port)
   : _port(port)
   , _addr(addr)
+  , _noDelay(false)
   , _pcb(0)
   , _connect_cb(0)
   , _connect_cb_arg(0)
