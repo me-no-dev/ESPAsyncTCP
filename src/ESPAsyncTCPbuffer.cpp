@@ -24,11 +24,7 @@
 
 
 #include <Arduino.h>
-#ifdef ESP8266
 #include <debug.h>
-#else
-#define panic()
-#endif
 
 #include "ESPAsyncTCPbuffer.h"
 
@@ -542,4 +538,3 @@ size_t AsyncTCPbuffer::_handleRxBuffer(uint8_t *buf, size_t len) {
 
     return 0;
 }
-
