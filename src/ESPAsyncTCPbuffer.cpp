@@ -255,6 +255,8 @@ void AsyncTCPbuffer::stop() {
                 _RXmode = ATB_RX_MODE_NONE;
                 _cbDone(false, NULL);
                 break;
+            default:
+              break;
         }
     }
     _RXmode = ATB_RX_MODE_NONE;

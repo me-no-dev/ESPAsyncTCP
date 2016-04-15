@@ -55,7 +55,7 @@ class AsyncTCPbuffer: public Print {
         typedef std::function<bool(AsyncTCPbuffer * obj)> AsyncTCPbufferDisconnectCb;
 
         AsyncTCPbuffer(AsyncClient* c);
-        ~AsyncTCPbuffer();
+        virtual ~AsyncTCPbuffer();
 
         size_t write(String & data);
         size_t write(uint8_t data);
