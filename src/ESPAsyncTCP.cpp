@@ -171,7 +171,9 @@ size_t AsyncClient::write(const char* data, size_t size) {
   int8_t err = tcp_write(_pcb, data, will_send, 0);
   if(err != ERR_OK)
     return 0;
-  tcp_output(_pcb);
+  err = tcp_output(_pcb);
+  if(err != ERR_OK)
+    return 0;
   _pcb_sent_at = millis();
   _pcb_busy = true;
   if(will_send < size){
@@ -179,6 +181,30 @@ size_t AsyncClient::write(const char* data, size_t size) {
     return will_send + write(data+will_send, left);
   }
   return size;
+}
+
+size_t AsyncClient::add(const char* data, size_t size) {
+  if(!_pcb || size == 0 || data == NULL)
+    return 0;
+  size_t room = tcp_sndbuf(_pcb);
+  if(!room)
+    return 0;
+  size_t will_send = (room < size) ? room : size;
+  int8_t err = tcp_write(_pcb, data, will_send, 0);
+  if(err != ERR_OK)
+    return 0;
+  return will_send;
+}
+
+bool AsyncClient::send(){
+  if(!canSend())
+    return false;
+  if(tcp_output(_pcb) == ERR_OK){
+    _pcb_busy = true;
+    _pcb_sent_at = millis();
+    return true;
+  }
+  return false;
 }
 
 // Private Callbacks

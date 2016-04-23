@@ -106,6 +106,10 @@ class AsyncClient {
 
     bool canSend();//ack is not pending
     size_t space();
+    size_t add(const char* data, size_t size);//add for sending
+    bool send();
+
+
     size_t write(const char* data);
     size_t write(const char* data, size_t size); //only when canSend() == true
 
