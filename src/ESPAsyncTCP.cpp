@@ -60,6 +60,7 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
   , _pcb_busy(false)
   , _pcb_sent_at(0)
   , _close_pcb(false)
+  , _ack_pcb(true)
   , _rx_last_packet(0)
   , _rx_since_timeout(0)
   , prev(NULL)
@@ -137,6 +138,7 @@ int8_t AsyncClient::abort(){
 }
 
 void AsyncClient::close(bool now){
+  tcp_recved(_pcb, _rx_ack_len);
   if(now)
     _close();
   else
@@ -205,6 +207,15 @@ bool AsyncClient::send(){
     return true;
   }
   return false;
+}
+
+size_t AsyncClient::ack(size_t len){
+  if(len > _rx_ack_len)
+    len = _rx_ack_len;
+  if(len)
+    tcp_recved(_pcb, len);
+  _rx_ack_len -= len;
+  return len;
 }
 
 // Private Callbacks
@@ -288,10 +299,15 @@ int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   _rx_last_packet = millis();
   //use callback (onData defined)
   while(pb != NULL){
+    //we should not ack before we assimilate the data
+    _ack_pcb = true;
     if(pb->next == NULL){
       if(_recv_cb)
         _recv_cb(_recv_cb_arg, this, pb->payload, pb->len);
-      tcp_recved(pcb, pb->len);
+      if(_ack_pcb)
+        tcp_recved(pcb, pb->len);
+      else
+        _rx_ack_len += pb->len;
       pbuf_free(pb);
       pb = NULL;
     } else {
@@ -299,7 +315,10 @@ int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
       pb = pbuf_dechain(b);
       if(_recv_cb)
         _recv_cb(_recv_cb_arg, this, b->payload, b->len);
-      tcp_recved(pcb, b->len);
+      if(_ack_pcb)
+        tcp_recved(pcb, b->len);
+      else
+        _rx_ack_len += b->len;
       pbuf_free(b);
     }
   }

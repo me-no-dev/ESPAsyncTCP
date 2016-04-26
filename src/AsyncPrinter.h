@@ -40,12 +40,17 @@ class AsyncPrinter: public Print {
     void *_close_arg;
     cbuf *_tx_buffer;
     size_t _tx_buffer_size;
+
+    void _onConnect(AsyncClient *c);
   public:
     AsyncPrinter *next;
 
     AsyncPrinter();
     AsyncPrinter(AsyncClient *client, size_t txBufLen = 1460);
     virtual ~AsyncPrinter();
+
+    int connect(IPAddress ip, uint16_t port);
+    int connect(const char *host, uint16_t port);
 
     void onData(ApDataHandler cb, void *arg);
     void onClose(ApCloseHandler cb, void *arg);

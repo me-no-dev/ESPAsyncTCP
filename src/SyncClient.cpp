@@ -119,7 +119,7 @@ uint8_t SyncClient::connected(){
 
 void SyncClient::stop(){
   if(_client != NULL)
-    _client->close();
+    _client->close(true);
 }
 
 size_t SyncClient::_sendBuffer(){
@@ -137,9 +137,10 @@ size_t SyncClient::_sendBuffer(){
 }
 
 void SyncClient::_onData(void *data, size_t len){
-  cbuf *b = new cbuf(len);
-  b->write((const char *)data, len);
+  _client->ackLater();
+  cbuf *b = new cbuf(len+1);
   if(b != NULL){
+    b->write((const char *)data, len);
     if(_rx_buffer == NULL)
       _rx_buffer = b;
     else {
@@ -157,6 +158,16 @@ void SyncClient::_onDisconnect(AsyncClient* c){
     _client = NULL;
     cl->free();
     delete cl;
+  }
+  if(_tx_buffer != NULL){
+    cbuf *b = _tx_buffer;
+    _tx_buffer = NULL;
+    delete b;
+  }
+  while(_rx_buffer != NULL){
+    cbuf *b = _rx_buffer;
+    _rx_buffer = b->next;
+    delete b;
   }
 }
 
@@ -226,6 +237,7 @@ int SyncClient::read(uint8_t *data, size_t len){
     _rx_buffer = _rx_buffer->next;
     size_t toRead = b->available();
     readSoFar += b->read((char*)(data+readSoFar), toRead);
+    _client->ack(b->size() - 1);
     delete b;
   }
   if(_rx_buffer != NULL && readSoFar < len){
@@ -250,4 +262,3 @@ void SyncClient::flush(){
     _sendBuffer();
   }
 }
-

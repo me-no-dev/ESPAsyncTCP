@@ -28,7 +28,7 @@ AsyncPrinter::AsyncPrinter()
   , _close_cb(NULL)
   , _close_arg(NULL)
   , _tx_buffer(NULL)
-  , _tx_buffer_size(0)
+  , _tx_buffer_size(1460)
   , next(NULL)
 {}
 
@@ -58,6 +58,42 @@ void AsyncPrinter::onData(ApDataHandler cb, void *arg){
 void AsyncPrinter::onClose(ApCloseHandler cb, void *arg){
   _close_cb = cb;
   _close_arg = arg;
+}
+
+int AsyncPrinter::connect(IPAddress ip, uint16_t port){
+  if(_client != NULL && connected())
+    return 0;
+  _client = new AsyncClient();
+  _client->onConnect([](void *obj, AsyncClient *c){ ((AsyncPrinter*)(obj))->_onConnect(c); }, this);
+  if(_client->connect(ip, port)){
+    while(_client->state() < 4)
+      delay(1);
+    return connected();
+  }
+  return 0;
+}
+
+int AsyncPrinter::connect(const char *host, uint16_t port){
+  if(_client != NULL && connected())
+    return 0;
+  _client = new AsyncClient();
+  _client->onConnect([](void *obj, AsyncClient *c){ ((AsyncPrinter*)(obj))->_onConnect(c); }, this);
+  if(_client->connect(host, port)){
+    while(_client->state() < 4)
+      delay(1);
+    return connected();
+  }
+  return 0;
+}
+
+void AsyncPrinter::_onConnect(AsyncClient *c){
+  if(_tx_buffer != NULL){
+    cbuf *b = _tx_buffer;
+    _tx_buffer = NULL;
+    delete b;
+  }
+  _tx_buffer = new cbuf(_tx_buffer_size);
+  _attachCallbacks();
 }
 
 AsyncPrinter::operator bool(){ return connected(); }
@@ -109,7 +145,7 @@ bool AsyncPrinter::connected(){
 
 void AsyncPrinter::close(){
   if(_client != NULL)
-    _client->close();
+    _client->close(true);
 }
 
 size_t AsyncPrinter::_sendBuffer(){
@@ -150,4 +186,3 @@ void AsyncPrinter::_attachCallbacks(){
   _client->onDisconnect([](void *obj, AsyncClient* c){ ((AsyncPrinter*)(obj))->_on_close(); c->free(); delete c; }, this);
   _client->onData([](void *obj, AsyncClient* c, void *data, size_t len){ ((AsyncPrinter*)(obj))->_onData(data, len); }, this);
 }
-
