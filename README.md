@@ -13,7 +13,6 @@ The base classes on which everything else is built. They expose all possible sce
 ## AsyncPrinter
 This class can be used to wrap around ```AsyncClient``` (let's say onConnect). From then on, sending data is like any other ```Print``` interface.
 The object then can be used outside of the Async callbacks (the loop) and receive asynchronously data using ```onData```. The object can be checked if the underlying ```AsyncClient```is connected, or hook to the ```onDisconnect``` callback.
-Printing to this client is asynchronous as well, which means that ```client.print()``` will return immediately and send the data in the background.
 
 ## AsyncTCPbuffer
 This class is really similar to the ```AsyncPrinter```, but it differs in the fact that it can buffer some of the incoming data.
