@@ -97,7 +97,7 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
   if (!pcb)
     return false;
 
-  pcb->local_port = _localPort++;
+  //pcb->local_port = _localPort++;
 
   tcp_arg(pcb, this);
   tcp_err(pcb, &_s_error);
