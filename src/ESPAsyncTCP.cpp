@@ -301,26 +301,17 @@ int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   while(pb != NULL){
     //we should not ack before we assimilate the data
     _ack_pcb = true;
-    if(pb->next == NULL){
-      if(_recv_cb)
-        _recv_cb(_recv_cb_arg, this, pb->payload, pb->len);
-      if(_ack_pcb)
-        tcp_recved(pcb, pb->len);
-      else
-        _rx_ack_len += pb->len;
-      pbuf_free(pb);
-      pb = NULL;
-    } else {
-      pbuf *b = pb;
-      pb = pbuf_dechain(b);
-      if(_recv_cb)
-        _recv_cb(_recv_cb_arg, this, b->payload, b->len);
-      if(_ack_pcb)
-        tcp_recved(pcb, b->len);
-      else
-        _rx_ack_len += b->len;
-      pbuf_free(b);
-    }
+    pbuf *b = pb;
+    if(_recv_cb)
+      _recv_cb(_recv_cb_arg, this, b->payload, b->len);
+    if(!_ack_pcb)
+      _rx_ack_len += b->len;
+    else
+      tcp_recved(pcb, b->len);
+    //pb = pbuf_dechain(b);
+    pb = b->next;
+    b->next = NULL;
+    pbuf_free(b);
   }
   return ERR_OK;
 }
