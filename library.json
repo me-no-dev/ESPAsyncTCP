@@ -12,6 +12,6 @@
     "type": "git",
     "url": "https://github.com/me-no-dev/ESPAsyncTCP.git"
   },
-  "frameworks": "espressif",
-  "platforms":"arduino"
+  "frameworks": "arduino",
+  "platforms":"espressif"
 }
