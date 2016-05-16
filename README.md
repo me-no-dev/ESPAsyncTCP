@@ -19,3 +19,10 @@ This class is really similar to the ```AsyncPrinter```, but it differs in the fa
 
 ## SyncClient
 It is exactly what it sounds like. This is a standard, blocking TCP Client, similar to the one included in ```ESP8266WiFi```
+
+## Libraries and projects that use AsyncTCP
+- [ESP Async Web Server](https://github.com/me-no-dev/ESPAsyncWebServer)
+- [Async MQTT client](https://github.com/marvinroger/async-mqtt-client)
+- [arduinoWebSockets](https://github.com/Links2004/arduinoWebSockets)
+- [ESP8266 Smart Home](https://github.com/baruch/esp8266_smart_home)
+- [KBox Firmware](https://github.com/sarfata/kbox-firmware)
