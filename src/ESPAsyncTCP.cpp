@@ -86,15 +86,15 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
   ip_addr_t addr;
   addr.addr = ip;
 
-  if (_pcb)
+  if (_pcb) //already connected
     return false;
 
   netif* interface = ip_route(&addr);
-  if (!interface)
+  if (!interface) //no route to host
     return false;
 
   tcp_pcb* pcb = tcp_new();
-  if (!pcb)
+  if (!pcb) //could not allocate pcb
     return false;
 
   //pcb->local_port = _localPort++;
@@ -380,8 +380,7 @@ AsyncClient & AsyncClient::operator+=(const AsyncClient &other) {
 }
 
 
-// Client Info
-
+// Make this async
 bool AsyncClient::connect(const char* host, uint16_t port){
   IPAddress remote_addr;
   if (WiFi.hostByName(host, remote_addr))
@@ -445,35 +444,19 @@ uint16_t AsyncClient::getLocalPort() {
 }
 
 IPAddress AsyncClient::remoteIP() {
-  if(!_pcb)
-    return IPAddress(0U);
-#ifdef ESP8266
-  return IPAddress(_pcb->remote_ip.addr);
-#else
-  return IPAddress(_pcb->remote_ip.ip4.addr);
-#endif
+  return IPAddress(getRemoteAddress());
 }
 
 uint16_t AsyncClient::remotePort() {
-  if(!_pcb)
-    return 0;
-  return _pcb->remote_port;
+  return getRemotePort();
 }
 
 IPAddress AsyncClient::localIP() {
-  if(!_pcb)
-    return IPAddress(0U);
-#ifdef ESP8266
-  return IPAddress(_pcb->local_ip.addr);
-#else
-  return IPAddress(_pcb->local_ip.ip4.addr);
-#endif
+  return IPAddress(getLocalAddress());
 }
 
 uint16_t AsyncClient::localPort() {
-  if(!_pcb)
-    return 0;
-  return _pcb->local_port;
+  return getLocalPort();
 }
 
 uint8_t AsyncClient::state() {
