@@ -11,7 +11,7 @@ This library is the base for [ESPAsyncWebServer](https://github.com/me-no-dev/ES
 The base classes on which everything else is built. They expose all possible scenarios, but are really raw and require more skills to use.
 
 ## AsyncPrinter
-This class can be used to wrap around ```AsyncClient``` (let's say onConnect). From then on, sending data is like any other ```Print``` interface.
+This class can be used to send data like any other ```Print``` interface (```Serial``` for example).
 The object then can be used outside of the Async callbacks (the loop) and receive asynchronously data using ```onData```. The object can be checked if the underlying ```AsyncClient```is connected, or hook to the ```onDisconnect``` callback.
 
 ## AsyncTCPbuffer
