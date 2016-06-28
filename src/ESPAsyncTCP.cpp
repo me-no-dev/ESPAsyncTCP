@@ -499,7 +499,7 @@ bool AsyncClient::freeable(){
 }
 
 bool AsyncClient::canSend(){
-  return _pcb != NULL && _pcb->state == 4 && tcp_sndbuf(_pcb) > 0;
+  return space() > 0;
 }
 
 
@@ -541,7 +541,11 @@ void AsyncClient::onPoll(AcConnectHandler cb, void* arg){
 }
 
 
-size_t AsyncClient::space(){ return tcp_sndbuf(_pcb);}
+size_t AsyncClient::space(){
+  if((_pcb != NULL) && (_pcb->state == 4))
+    return _pcb->snd_buf;
+  return 0;
+}
 
 const char * AsyncClient::errorToString(int8_t error){
   switch(error){
