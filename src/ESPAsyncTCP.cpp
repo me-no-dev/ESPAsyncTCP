@@ -499,7 +499,7 @@ bool AsyncClient::freeable(){
 }
 
 bool AsyncClient::canSend(){
-  return _pcb != NULL && _pcb->state == 4 && !_pcb_busy;
+  return _pcb != NULL && _pcb->state == 4 && tcp_sndbuf(_pcb) > 0;
 }
 
 
