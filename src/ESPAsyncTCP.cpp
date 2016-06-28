@@ -25,6 +25,7 @@
 extern "C"{
   #include "lwip/opt.h"
   #include "lwip/tcp.h"
+  //#include "lwip/tcp_impl.h"
   #include "lwip/inet.h"
 }
 
@@ -228,10 +229,12 @@ int8_t AsyncClient::_close(){
     tcp_recv(_pcb, NULL);
     tcp_err(_pcb, NULL);
     tcp_poll(_pcb, NULL, 0);
+    //_pcb->tmr = 2 * TCP_MSL / TCP_SLOW_INTERVAL;
     err = tcp_close(_pcb);
-    if(err != ERR_OK) {
-      err = abort();
-    }
+    tcp_abort(_pcb);
+    //if(err != ERR_OK) {
+    //  err = abort();
+    //}
     _pcb = NULL;
     if(_discard_cb)
       _discard_cb(_discard_cb_arg, this);
