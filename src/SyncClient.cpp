@@ -152,12 +152,9 @@ void SyncClient::_onData(void *data, size_t len){
   }
 }
 
-void SyncClient::_onDisconnect(AsyncClient* c){
+void SyncClient::_onDisconnect(){
   if(_client != NULL){
-    AsyncClient* cl = _client;
     _client = NULL;
-    cl->free();
-    delete cl;
   }
   if(_tx_buffer != NULL){
     cbuf *b = _tx_buffer;
@@ -183,7 +180,7 @@ void SyncClient::_onConnect(AsyncClient *c){
 
 void SyncClient::_attachCallbacks(){
   _client->onAck([](void *obj, AsyncClient* c, size_t len, uint32_t time){ ((SyncClient*)(obj))->_sendBuffer(); }, this);
-  _client->onDisconnect([](void *obj, AsyncClient* c){ ((SyncClient*)(obj))->_onDisconnect(c); }, this);
+  _client->onDisconnect([](void *obj, AsyncClient* c){ ((SyncClient*)(obj))->_onDisconnect(); delete c; }, this);
   _client->onData([](void *obj, AsyncClient* c, void *data, size_t len){ ((SyncClient*)(obj))->_onData(data, len); }, this);
   _client->onTimeout([](void *obj, AsyncClient* c, uint32_t time){ c->close(); }, this);
 }

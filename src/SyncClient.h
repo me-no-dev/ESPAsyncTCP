@@ -36,7 +36,7 @@ class SyncClient: public Client {
     size_t _sendBuffer();
     void _onData(void *data, size_t len);
     void _onConnect(AsyncClient *c);
-    void _onDisconnect(AsyncClient* c);
+    void _onDisconnect();
     void _attachCallbacks();
 
   public:

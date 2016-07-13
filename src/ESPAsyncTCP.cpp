@@ -279,22 +279,7 @@ int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
 
 int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   if(pb == 0){
-    int8_t err = ERR_OK;
-    if(_pcb) {
-      tcp_arg(_pcb, NULL);
-      tcp_sent(_pcb, NULL);
-      tcp_recv(_pcb, NULL);
-      tcp_err(_pcb, NULL);
-      tcp_poll(_pcb, NULL, 0);
-      err = tcp_close(_pcb);
-      if(err != ERR_OK) {
-        err = abort();
-      }
-      _pcb = NULL;
-      if(_discard_cb)
-        _discard_cb(_discard_cb_arg, this);
-    }
-    return err;
+    return _close();
   }
 
   _rx_last_packet = millis();

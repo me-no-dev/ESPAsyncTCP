@@ -301,7 +301,6 @@ void AsyncTCPbuffer::_attachCallbacks() {
         if(b->_cbDisconnect) {
             del = b->_cbDisconnect(b);
         }
-        c->free();
         delete c;
         if(del) {
             delete b;
