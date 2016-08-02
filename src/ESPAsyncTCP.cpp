@@ -96,8 +96,9 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
   addr.addr = ip;
   netif* interface = ip_route(&addr);
 #endif
-  if (!interface) //no route to host
+  if (!interface){ //no route to host
     return false;
+  }
 
   tcp_pcb* pcb = tcp_new();
   if (!pcb) //could not allocate pcb
@@ -609,11 +610,13 @@ void AsyncServer::begin(){
 
   int8_t err;
   tcp_pcb* pcb = tcp_new();
-  if (!pcb)
+  if (!pcb){
     return;
+  }
 
   ip_addr_t local_addr;
 #ifndef ESP8266
+  local_addr.type = IPADDR_TYPE_V4;
   local_addr.u_addr.ip4.addr = (uint32_t) _addr;
 #else
   local_addr.addr = (uint32_t) _addr;
