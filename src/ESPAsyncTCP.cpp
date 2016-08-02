@@ -37,9 +37,6 @@ extern "C"{
 #error "UNSUPPORTED ARCHITECTURE"
 #endif
 
-
-static uint16_t _localPort = 10000;
-
 /*
   Async TCP Client
 */
@@ -84,13 +81,21 @@ AsyncClient::~AsyncClient(){
 }
 
 bool AsyncClient::connect(IPAddress ip, uint16_t port){
-  ip_addr_t addr;
-  addr.addr = ip;
 
   if (_pcb) //already connected
     return false;
+#ifndef ESP8266
+  ip_addr_t addr;
+  addr.u_addr.ip4.addr = ip;
 
+  ip_addr_t saddr;
+  saddr.u_addr.ip4.addr = 0;
+  netif* interface = ip_route(&saddr, &addr);
+#else
+  ip_addr_t addr;
+  addr.addr = ip;
   netif* interface = ip_route(&addr);
+#endif
   if (!interface) //no route to host
     return false;
 
@@ -126,7 +131,7 @@ bool AsyncClient::operator==(const AsyncClient &other) {
 #ifdef ESP8266
   return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.addr == other._pcb->remote_ip.addr) && (_pcb->remote_port == other._pcb->remote_port));
 #else
-  return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.ip4.addr == other._pcb->remote_ip.ip4.addr) && (_pcb->remote_port == other._pcb->remote_port));
+  return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.u_addr.ip4.addr == other._pcb->remote_ip.u_addr.ip4.addr) && (_pcb->remote_port == other._pcb->remote_port));
 #endif
 }
 
@@ -403,7 +408,7 @@ uint32_t AsyncClient::getRemoteAddress() {
 #ifdef ESP8266
   return _pcb->remote_ip.addr;
 #else
-  return _pcb->remote_ip.ip4.addr;
+  return _pcb->remote_ip.u_addr.ip4.addr;
 #endif
 }
 
@@ -419,7 +424,7 @@ uint32_t AsyncClient::getLocalAddress() {
 #ifdef ESP8266
   return _pcb->local_ip.addr;
 #else
-  return _pcb->local_ip.ip4.addr;
+  return _pcb->local_ip.u_addr.ip4.addr;
 #endif
 }
 
@@ -608,7 +613,11 @@ void AsyncServer::begin(){
     return;
 
   ip_addr_t local_addr;
+#ifndef ESP8266
+  local_addr.u_addr.ip4.addr = (uint32_t) _addr;
+#else
   local_addr.addr = (uint32_t) _addr;
+#endif
   err = tcp_bind(pcb, &local_addr, _port);
 
   if (err != ERR_OK) {
