@@ -29,14 +29,6 @@ extern "C"{
   #include "lwip/dns.h"
 }
 
-#ifdef ESP8266
-#include <ESP8266WiFi.h>
-#elif defined(ESP31B)
-#include <ESP31BWiFi.h>
-#else
-#error "UNSUPPORTED ARCHITECTURE"
-#endif
-
 /*
   Async TCP Client
 */
