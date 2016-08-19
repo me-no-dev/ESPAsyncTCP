@@ -43,6 +43,7 @@ typedef std::function<void(void*, AsyncClient*, uint32_t time)> AcTimeoutHandler
 
 struct tcp_pcb;
 struct pbuf;
+struct ip_addr;
 
 class AsyncClient {
   protected:
@@ -62,7 +63,6 @@ class AsyncClient {
     void* _timeout_cb_arg;
     AcConnectHandler _poll_cb;
     void* _poll_cb_arg;
-    int _refcnt;
     bool _pcb_busy;
     uint32_t _pcb_sent_at;
     bool _close_pcb;
@@ -70,6 +70,7 @@ class AsyncClient {
     uint32_t _rx_ack_len;
     uint32_t _rx_last_packet;
     uint32_t _rx_since_timeout;
+    uint16_t _connect_port;
 
     int8_t _close();
     int8_t _connected(void* pcb, int8_t err);
@@ -82,6 +83,7 @@ class AsyncClient {
     static void _s_error(void *arg, int8_t err);
     static int8_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
     static int8_t _s_connected(void* arg, void* tpcb, int8_t err);
+    static void _s_dns_found(const char *name, struct ip_addr *ipaddr, void *arg);
 
   public:
     AsyncClient* prev;
