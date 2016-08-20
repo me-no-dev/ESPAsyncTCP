@@ -94,18 +94,10 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
 }
 
 bool AsyncClient::connect(const char* host, uint16_t port) {
-  IPAddress remote_addr;
   ip_addr_t addr;
-  remote_addr = static_cast<uint32_t>(0);
-
-  if(remote_addr.fromString(host)) {
-    return connect(remote_addr, port);
-  }
-
   err_t err = dns_gethostbyname(host, &addr, (dns_found_callback)&_s_dns_found, this);
   if(err == ERR_OK) {
-    remote_addr = addr.addr;
-    return connect(remote_addr, port);
+    return connect(IPAddress(addr.addr), port);
   } else if(err == ERR_INPROGRESS) {
     _connect_port = port;
     return true;
@@ -335,9 +327,7 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
 
 void AsyncClient::_s_dns_found(const char *name, ip_addr_t *ipaddr, void *arg){
   AsyncClient* c = reinterpret_cast<AsyncClient*>(arg);
-  IPAddress remote_addr;
-  remote_addr = ipaddr->addr;
-  c->connect(remote_addr, c->_connect_port);
+  c->connect(IPAddress(ipaddr->addr), c->_connect_port);
 }
 
 int8_t AsyncClient::_s_poll(void *arg, struct tcp_pcb *tpcb) {
