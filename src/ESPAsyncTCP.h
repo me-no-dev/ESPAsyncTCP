@@ -70,6 +70,7 @@ class AsyncClient {
     uint32_t _rx_ack_len;
     uint32_t _rx_last_packet;
     uint32_t _rx_since_timeout;
+    uint32_t _ack_timeout;
     uint16_t _connect_port;
 
     int8_t _close();
@@ -129,6 +130,8 @@ class AsyncClient {
 
     uint32_t getRxTimeout();
     void setRxTimeout(uint32_t timeout);//no RX data timeout for the connection in seconds
+    uint32_t getAckTimeout();
+    void setAckTimeout(uint32_t timeout);//no ACK timeout for the last sent packet in milliseconds
     void setNoDelay(bool nodelay);
     bool getNoDelay();
     uint32_t getRemoteAddress();

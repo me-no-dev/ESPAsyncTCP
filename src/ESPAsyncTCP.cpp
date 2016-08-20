@@ -52,6 +52,7 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
   , _ack_pcb(true)
   , _rx_last_packet(0)
   , _rx_since_timeout(0)
+  , _ack_timeout(ASYNC_MAX_ACK_TIME)
   , _connect_port(0)
   , prev(NULL)
   , next(NULL)
@@ -306,7 +307,7 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
   }
   uint32_t now = millis();
   // ACK Timeout
-  if(_pcb_busy && (now - _pcb_sent_at) >= ASYNC_MAX_ACK_TIME){
+  if(_pcb_busy && _ack_timeout && (now - _pcb_sent_at) >= _ack_timeout){
     _pcb_busy = false;
     if(_timeout_cb)
       _timeout_cb(_timeout_cb_arg, this, (now - _pcb_sent_at));
@@ -381,6 +382,14 @@ void AsyncClient::setRxTimeout(uint32_t timeout){
 
 uint32_t AsyncClient::getRxTimeout(){
   return _rx_since_timeout;
+}
+
+uint32_t AsyncClient::getAckTimeout(){
+  return _ack_timeout;
+}
+
+void AsyncClient::setAckTimeout(uint32_t timeout){
+  _ack_timeout = timeout;
 }
 
 void AsyncClient::setNoDelay(bool nodelay){
