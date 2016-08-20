@@ -323,13 +323,21 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
   return ERR_OK;
 }
 
+void AsyncClient::_dns_found(ip_addr_t *ipaddr){
+  if(ipaddr){
+    connect(IPAddress(ipaddr->addr), _connect_port);
+  } else {
+    if(_error_cb)
+      _error_cb(_error_cb_arg, this, -55);
+    if(_discard_cb)
+      _discard_cb(_discard_cb_arg, this);
+  }
+}
+
 // lWIP Callbacks
 
 void AsyncClient::_s_dns_found(const char *name, ip_addr_t *ipaddr, void *arg){
-  if(ipaddr){
-    AsyncClient* c = reinterpret_cast<AsyncClient*>(arg);
-    c->connect(IPAddress(ipaddr->addr), c->_connect_port);
-  }
+  reinterpret_cast<AsyncClient*>(arg)->_dns_found(ipaddr);
 }
 
 int8_t AsyncClient::_s_poll(void *arg, struct tcp_pcb *tpcb) {
@@ -533,6 +541,7 @@ const char * AsyncClient::errorToString(int8_t error){
     case -13: return "Address in use";
     case -14: return "Low-level netif error";
     case -15: return "Already connected";
+    case -55: return "DNS failed";
     default: return "UNKNOWN";
   }
 }

@@ -78,6 +78,7 @@ class AsyncClient {
     int8_t _poll(tcp_pcb* pcb);
     int8_t _sent(tcp_pcb* pcb, uint16_t len);
     int8_t _recv(tcp_pcb* pcb, pbuf* pb, int8_t err);
+    void _dns_found(ip_addr_t *ipaddr);
     static int8_t _s_poll(void *arg, struct tcp_pcb *tpcb);
     static int8_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
     static void _s_error(void *arg, int8_t err);
