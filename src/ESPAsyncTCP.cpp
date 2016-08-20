@@ -326,8 +326,10 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
 // lWIP Callbacks
 
 void AsyncClient::_s_dns_found(const char *name, ip_addr_t *ipaddr, void *arg){
-  AsyncClient* c = reinterpret_cast<AsyncClient*>(arg);
-  c->connect(IPAddress(ipaddr->addr), c->_connect_port);
+  if(ipaddr){
+    AsyncClient* c = reinterpret_cast<AsyncClient*>(arg);
+    c->connect(IPAddress(ipaddr->addr), c->_connect_port);
+  }
 }
 
 int8_t AsyncClient::_s_poll(void *arg, struct tcp_pcb *tpcb) {
