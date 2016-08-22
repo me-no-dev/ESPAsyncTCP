@@ -44,6 +44,8 @@ typedef std::function<void(void*, AsyncClient*, uint32_t time)> AcTimeoutHandler
 struct tcp_pcb;
 struct pbuf;
 struct ip_addr;
+struct SSL_;
+typedef struct SSL_ SSL;
 
 class AsyncClient {
   protected:
@@ -64,6 +66,8 @@ class AsyncClient {
     AcConnectHandler _poll_cb;
     void* _poll_cb_arg;
     bool _pcb_busy;
+    bool _pcb_secure;
+    bool _handshake_done;
     uint32_t _pcb_sent_at;
     bool _close_pcb;
     bool _ack_pcb;
@@ -76,6 +80,7 @@ class AsyncClient {
     int8_t _close();
     int8_t _connected(void* pcb, int8_t err);
     void _error(int8_t err);
+    void _ssl_error(int8_t err);
     int8_t _poll(tcp_pcb* pcb);
     int8_t _sent(tcp_pcb* pcb, uint16_t len);
     int8_t _recv(tcp_pcb* pcb, pbuf* pb, int8_t err);
@@ -86,6 +91,9 @@ class AsyncClient {
     static int8_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
     static int8_t _s_connected(void* arg, void* tpcb, int8_t err);
     static void _s_dns_found(const char *name, struct ip_addr *ipaddr, void *arg);
+    static void _s_data(void *arg, struct tcp_pcb *tcp, uint8_t * data, size_t len);
+    static void _s_handshake(void *arg, struct tcp_pcb *tcp, SSL *ssl);
+    static void _s_ssl_error(void *arg, struct tcp_pcb *tcp, int8_t err);
 
   public:
     AsyncClient* prev;
@@ -103,8 +111,8 @@ class AsyncClient {
       return !(*this == other);
     }
 
-    bool connect(IPAddress ip, uint16_t port);
-    bool connect(const char* host, uint16_t port);
+    bool connect(IPAddress ip, uint16_t port, bool secure=false);
+    bool connect(const char* host, uint16_t port, bool secure=false);
     void close(bool now = false);
     void stop();
     int8_t abort();
@@ -117,6 +125,7 @@ class AsyncClient {
     size_t ack(size_t len); //ack data that you have not acked using the method below
     void ackLater(){ _ack_pcb = false; } //will not ack the current packet. Call from onData
 
+    SSL *getSSL();
 
     size_t write(const char* data);
     size_t write(const char* data, size_t size); //only when canSend() == true

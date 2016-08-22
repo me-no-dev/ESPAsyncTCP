@@ -47,8 +47,14 @@ class SyncClient: public Client {
     operator bool(){ return connected(); }
     SyncClient & operator=(const SyncClient &other);
 
-    int connect(IPAddress ip, uint16_t port);
-    int connect(const char *host, uint16_t port);
+    int connect(IPAddress ip, uint16_t port, bool secure);
+    int connect(const char *host, uint16_t port, bool secure);
+    int connect(IPAddress ip, uint16_t port){
+      return connect(ip, port, false);
+    }
+    int connect(const char *host, uint16_t port){
+      return connect(host, port, false);
+    }
     void setTimeout(uint32_t seconds);
 
     uint8_t status();

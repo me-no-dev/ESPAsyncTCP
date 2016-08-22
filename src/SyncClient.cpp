@@ -53,26 +53,26 @@ SyncClient::~SyncClient(){
   }
 }
 
-int SyncClient::connect(IPAddress ip, uint16_t port){
+int SyncClient::connect(IPAddress ip, uint16_t port, bool secure){
   if(_client != NULL && connected())
     return 0;
   _client = new AsyncClient();
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
-  if(_client->connect(ip, port)){
-    while(_client->state() < 4)
+  if(_client->connect(ip, port, secure)){
+    while(_client != NULL && !_client->connected() && !_client->disconnecting())
       delay(1);
     return connected();
   }
   return 0;
 }
 
-int SyncClient::connect(const char *host, uint16_t port){
+int SyncClient::connect(const char *host, uint16_t port, bool secure){
   if(_client != NULL && connected())
     return 0;
   _client = new AsyncClient();
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
-  if(_client->connect(host, port)){
-    while(_client->state() < 4)
+  if(_client->connect(host, port, secure)){
+    while(_client != NULL && !_client->connected() && !_client->disconnecting())
       delay(1);
     return connected();
   }
