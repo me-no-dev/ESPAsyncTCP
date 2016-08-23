@@ -119,6 +119,17 @@ AsyncClient& AsyncClient::operator=(const AsyncClient& other){
 
   _pcb = other._pcb;
   if (_pcb) {
+    if(axl_get(_pcb)){
+      _pcb_secure = true;
+      _handshake_done = false;
+      axl_arg(_pcb, this);
+      axl_data(_pcb, &_s_data);
+      axl_handshake(_pcb, &_s_handshake);
+      axl_err(_pcb, &_s_ssl_error);
+    } else {
+      _pcb_secure = false;
+      _handshake_done = true;
+    }
     tcp_setprio(_pcb, TCP_PRIO_MIN);
     tcp_arg(_pcb, this);
     tcp_recv(_pcb, &_s_recv);
@@ -243,13 +254,13 @@ size_t AsyncClient::ack(size_t len){
 int8_t AsyncClient::_close(){
   int8_t err = ERR_OK;
   if(_pcb) {
+    if(_pcb_secure)
+      axl_free(_pcb);
     tcp_arg(_pcb, NULL);
     tcp_sent(_pcb, NULL);
     tcp_recv(_pcb, NULL);
     tcp_err(_pcb, NULL);
     tcp_poll(_pcb, NULL, 0);
-    if(_pcb_secure)
-      axl_free(_pcb);
     err = tcp_close(_pcb);
     if(err != ERR_OK) {
       err = abort();
@@ -287,13 +298,13 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
 
 void AsyncClient::_error(int8_t err) {
   if(_pcb){
+    if(_pcb_secure)
+      axl_free(_pcb);
     tcp_arg(_pcb, NULL);
     tcp_sent(_pcb, NULL);
     tcp_recv(_pcb, NULL);
     tcp_err(_pcb, NULL);
     tcp_poll(_pcb, NULL, 0);
-    if(_pcb_secure)
-      axl_free(_pcb);
     _pcb = NULL;
   }
   if(_error_cb)
@@ -606,7 +617,7 @@ void AsyncClient::onPoll(AcConnectHandler cb, void* arg){
 
 
 size_t AsyncClient::space(){
-  if((_pcb != NULL) && (_pcb->state == 4))
+  if((_pcb != NULL) && (_pcb->state == 4) && _handshake_done)
     return _pcb->snd_buf;
   return 0;
 }
