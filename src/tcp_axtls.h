@@ -52,7 +52,7 @@ extern "C" {
 #define tcp_ssl_ssl_read(A, B) tcp_ssl_read(A, B)
 
 #ifndef TCP_SSL_DEBUG
-  #define TCP_SSL_DEBUG(...) ets_printf(__VA_ARGS__)
+  #define TCP_SSL_DEBUG(...) //ets_printf(__VA_ARGS__)
 #endif
 
 typedef void (* tcp_ssl_data_cb_t)(void *arg, struct tcp_pcb *tcp, uint8_t * data, size_t len);

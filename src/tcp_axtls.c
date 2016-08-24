@@ -173,7 +173,7 @@ int tcp_ssl_new_client(struct tcp_pcb *tcp){
     return -1;
   }
 
-  return 0;
+  return tcp_ssl->fd;
 }
 
 int tcp_ssl_new_server(struct tcp_pcb *tcp, SSL_CTX* ssl_ctx){
@@ -207,7 +207,7 @@ int tcp_ssl_new_server(struct tcp_pcb *tcp, SSL_CTX* ssl_ctx){
     return -1;
   }
 
-  return 0;
+  return tcp_ssl->fd;
 }
 
 int tcp_ssl_free(struct tcp_pcb *tcp) {

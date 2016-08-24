@@ -276,8 +276,7 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
     tcp_sent(_pcb, &_s_sent);
     tcp_poll(_pcb, &_s_poll, 1);
     if(_pcb_secure){
-      int axl = tcp_ssl_new_client(_pcb);
-      if(axl < 0){
+      if(tcp_ssl_new_client(_pcb) < 0){
         return _close();
       }
       tcp_ssl_arg(_pcb, this);
