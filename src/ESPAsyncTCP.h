@@ -46,6 +46,8 @@ struct pbuf;
 struct ip_addr;
 struct SSL_;
 typedef struct SSL_ SSL;
+struct SSL_CTX_;
+typedef struct SSL_CTX_ SSL_CTX;
 
 class AsyncClient {
   protected:
@@ -83,7 +85,6 @@ class AsyncClient {
     void _ssl_error(int8_t err);
     int8_t _poll(tcp_pcb* pcb);
     int8_t _sent(tcp_pcb* pcb, uint16_t len);
-    int8_t _recv(tcp_pcb* pcb, pbuf* pb, int8_t err);
     void _dns_found(struct ip_addr *ipaddr);
     static int8_t _s_poll(void *arg, struct tcp_pcb *tpcb);
     static int8_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
@@ -99,7 +100,7 @@ class AsyncClient {
     AsyncClient* prev;
     AsyncClient* next;
 
-    AsyncClient(tcp_pcb* pcb = 0);
+    AsyncClient(tcp_pcb* pcb = 0, SSL_CTX * ssl_ctx = NULL);
     ~AsyncClient();
 
     AsyncClient & operator=(const AsyncClient &other);
@@ -163,7 +164,13 @@ class AsyncClient {
 
     const char * errorToString(int8_t error);
     const char * stateToString();
+
+    int8_t _recv(tcp_pcb* pcb, pbuf* pb, int8_t err);
 };
+
+
+typedef std::function<int(void* arg, const char *filename, uint8_t **buf)> AcSSlFileHandler;
+struct pending_pcb;
 
 class AsyncServer {
   protected:
@@ -171,15 +178,24 @@ class AsyncServer {
     IPAddress _addr;
     bool _noDelay;
     tcp_pcb* _pcb;
+    struct pending_pcb * _pending;
+    SSL_CTX * _ssl_ctx;
+    size_t _clients_waiting;
     AcConnectHandler _connect_cb;
     void* _connect_cb_arg;
+    AcSSlFileHandler _file_cb;
+    void* _file_cb_arg;
 
   public:
+    static bool _ssl_hasClient;
+
     AsyncServer(IPAddress addr, uint16_t port);
     AsyncServer(uint16_t port);
     ~AsyncServer();
     void onClient(AcConnectHandler cb, void* arg);
+    void onSslFileRequest(AcSSlFileHandler cb, void* arg);
     void begin();
+    void beginSecure(const char *cert, const char *private_key_file, const char *password);
     void end();
     void setNoDelay(bool nodelay);
     bool getNoDelay();
@@ -187,7 +203,13 @@ class AsyncServer {
 
   protected:
     int8_t _accept(tcp_pcb* newpcb, int8_t err);
+    int _cert(const char *filename, uint8_t **buf);
+    int8_t _poll(tcp_pcb* pcb);
+    int8_t _recv(tcp_pcb *pcb, struct pbuf *pb, int8_t err);
     static int8_t _s_accept(void *arg, tcp_pcb* newpcb, int8_t err);
+    static int _s_cert(void *arg, const char *filename, uint8_t **buf);
+    static int8_t _s_poll(void *arg, struct tcp_pcb *tpcb);
+    static int8_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
 };
 
 
