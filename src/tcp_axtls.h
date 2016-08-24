@@ -37,7 +37,6 @@ extern "C" {
 #endif
 
 #include "include/ssl.h"
-#include "include/ssl_config.h"
 
 #define ERR_TCP_SSL_INVALID_SSL           -101
 #define ERR_TCP_SSL_INVALID_TCP           -102

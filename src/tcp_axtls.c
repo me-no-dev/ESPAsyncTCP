@@ -124,7 +124,7 @@ tcp_ssl_t * tcp_ssl_new(struct tcp_pcb *tcp) {
     item->next = new_item;
   }
 
-  TCP_SSL_DEBUG("tcp_ssl_new: %d\n", new_item->fd);
+  //TCP_SSL_DEBUG("tcp_ssl_new: %d\n", new_item->fd);
   return new_item;
 }
 
@@ -223,7 +223,7 @@ int tcp_ssl_free(struct tcp_pcb *tcp) {
     if(item->tcp_pbuf != NULL){
       pbuf_free(item->tcp_pbuf);
     }
-    TCP_SSL_DEBUG("tcp_ssl_free: %d\n", item->fd);
+    //TCP_SSL_DEBUG("tcp_ssl_free: %d\n", item->fd);
     if(item->ssl)
       ssl_free(item->ssl);
     if(item->type == TCP_SSL_TYPE_CLIENT && item->ssl_ctx)
@@ -244,7 +244,7 @@ int tcp_ssl_free(struct tcp_pcb *tcp) {
   if(i->tcp_pbuf != NULL){
     pbuf_free(i->tcp_pbuf);
   }
-  TCP_SSL_DEBUG("tcp_ssl_free: %d\n", i->fd);
+  //TCP_SSL_DEBUG("tcp_ssl_free: %d\n", i->fd);
   if(i->ssl)
     ssl_free(i->ssl);
   if(i->type == TCP_SSL_TYPE_CLIENT && i->ssl_ctx)
@@ -274,7 +274,7 @@ int tcp_ssl_write(struct tcp_pcb *tcp, uint8_t *data, size_t len) {
     return rc;
   }
 
-  TCP_SSL_DEBUG("tcp_ssl_write: %u -> %d\r\n", len, axl->last_wr);
+  //TCP_SSL_DEBUG("tcp_ssl_write: %u -> %d\r\n", len, axl->last_wr);
 
   return axl->last_wr;
 }
@@ -333,7 +333,7 @@ int tcp_ssl_read(struct tcp_pcb *tcp, struct pbuf *p) {
       if(fd_data->handshake != SSL_OK) {
         fd_data->handshake = ssl_handshake_status(fd_data->ssl);
         if(fd_data->handshake == SSL_OK){
-          TCP_SSL_DEBUG("tcp_ssl_read: handshake OK\n");
+          //TCP_SSL_DEBUG("tcp_ssl_read: handshake OK\n");
           if(fd_data->on_handshake)
             fd_data->on_handshake(fd_data->arg, fd_data->tcp, fd_data->ssl);
         } else if(fd_data->handshake != SSL_NOT_OK){
@@ -470,7 +470,7 @@ int ax_port_write(int fd, uint8_t *data, uint16_t len) {
 
 
   if (err == ERR_OK) {
-    TCP_SSL_DEBUG("ax_port_write: tcp_output length %d / %d\n", tcp_len, len);
+    //TCP_SSL_DEBUG("ax_port_write: tcp_output length %d / %d\n", tcp_len, len);
     err = tcp_output(fd_data->tcp);
     if(err != ERR_OK) {
       TCP_SSL_DEBUG("ax_port_write: tcp_output err: %d\n", err);
@@ -492,7 +492,7 @@ int ax_port_read(int fd, uint8_t *data, int len) {
   uint8_t *pread_buf = NULL;
   u16_t recv_len = 0;
 
-  TCP_SSL_DEBUG("ax_port_read: %d, %d\n", fd, len);
+  //TCP_SSL_DEBUG("ax_port_read: %d, %d\n", fd, len);
 
   fd_data = tcp_ssl_get_by_fd(fd);
   if (fd_data == NULL) {

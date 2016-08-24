@@ -343,7 +343,7 @@ void AsyncClient::_ssl_error(int8_t err){
 
 int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
   _rx_last_packet = millis();
-  ets_printf("ack: %u\n", len);
+  //ets_printf("ack: %u\n", len);
   _pcb_busy = false;
   if(_sent_cb)
     _sent_cb(_sent_cb_arg, this, len, (millis() - _pcb_sent_at));
@@ -354,7 +354,7 @@ int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
   if(pb == 0){
     //ets_printf("_pb null! %d\n", err);
     return _close();
-  } else ets_printf("_recv: %d\n", pb->tot_len);
+  } //else ets_printf("_recv: %d\n", pb->tot_len);
 
   _rx_last_packet = millis();
   if(_pcb_secure){
