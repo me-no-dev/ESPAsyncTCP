@@ -26,6 +26,10 @@
 #ifndef LWIPR_COMPAT_H
 #define LWIPR_COMPAT_H
 
+#include <async_config.h>
+
+#if ASYNC_TCP_SSL_ENABLED
+
 #include "lwipopts.h"
 /*
  * All those functions will run only if LWIP tcp raw mode is used
@@ -95,5 +99,7 @@ bool tcp_ssl_has(struct tcp_pcb *tcp);
 #endif
 
 #endif /* LWIP_RAW==1 */
+
+#endif /* ASYNC_TCP_SSL_ENABLED */
 
 #endif /* LWIPR_COMPAT_H */

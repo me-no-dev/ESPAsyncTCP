@@ -47,6 +47,7 @@ class SyncClient: public Client {
     operator bool(){ return connected(); }
     SyncClient & operator=(const SyncClient &other);
 
+#if ASYNC_TCP_SSL_ENABLED
     int connect(IPAddress ip, uint16_t port, bool secure);
     int connect(const char *host, uint16_t port, bool secure);
     int connect(IPAddress ip, uint16_t port){
@@ -55,6 +56,10 @@ class SyncClient: public Client {
     int connect(const char *host, uint16_t port){
       return connect(host, port, false);
     }
+#else
+    int connect(IPAddress ip, uint16_t port);
+    int connect(const char *host, uint16_t port);
+#endif
     void setTimeout(uint32_t seconds);
 
     uint8_t status();

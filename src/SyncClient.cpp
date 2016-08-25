@@ -53,12 +53,20 @@ SyncClient::~SyncClient(){
   }
 }
 
+#if ASYNC_TCP_SSL_ENABLED
 int SyncClient::connect(IPAddress ip, uint16_t port, bool secure){
+#else
+int SyncClient::connect(IPAddress ip, uint16_t port){
+#endif
   if(_client != NULL && connected())
     return 0;
   _client = new AsyncClient();
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
+#if ASYNC_TCP_SSL_ENABLED
   if(_client->connect(ip, port, secure)){
+#else
+  if(_client->connect(ip, port)){
+#endif
     while(_client != NULL && !_client->connected() && !_client->disconnecting())
       delay(1);
     return connected();
@@ -66,12 +74,20 @@ int SyncClient::connect(IPAddress ip, uint16_t port, bool secure){
   return 0;
 }
 
+#if ASYNC_TCP_SSL_ENABLED
 int SyncClient::connect(const char *host, uint16_t port, bool secure){
+#else
+int SyncClient::connect(const char *host, uint16_t port){
+#endif
   if(_client != NULL && connected())
     return 0;
   _client = new AsyncClient();
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
+#if ASYNC_TCP_SSL_ENABLED
   if(_client->connect(host, port, secure)){
+#else
+  if(_client->connect(host, port)){
+#endif
     while(_client != NULL && !_client->connected() && !_client->disconnecting())
       delay(1);
     return connected();
