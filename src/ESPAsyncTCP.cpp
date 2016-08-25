@@ -640,14 +640,15 @@ void AsyncClient::onPoll(AcConnectHandler cb, void* arg){
 
 size_t AsyncClient::space(){
   if((_pcb != NULL) && (_pcb->state == 4) && _handshake_done){
-    uint16_t s = _pcb->snd_buf;
+    uint16_t s = tcp_sndbuf(_pcb);
     if(_pcb_secure){
-      if(s > 1400)
-        return 1400;
-      if(s >= 53){
-        return s - 53;
-      }
+#if AXTLS_2_0_0_SNDBUF
+      return tcp_ssl_sndbuf(_pcb);
+#else
+      if(s >= 128) //safe approach
+        return s - 128;
       return 0;
+#endif
     }
     return s;
   }
@@ -826,7 +827,7 @@ uint8_t AsyncServer::status(){
 
 int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
   if(_connect_cb){
-    if (_noDelay)
+    if (_noDelay || _ssl_ctx)
       tcp_nagle_disable(pcb);
     else
       tcp_nagle_enable(pcb);

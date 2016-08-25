@@ -31,6 +31,11 @@
 #include <stdarg.h>
 #include <tcp_axtls.h>
 
+uint8_t * default_private_key = NULL;
+uint16_t default_private_key_len = 0;
+
+uint8_t * default_certificate = NULL;
+uint16_t default_certificate_len = 0;
 
 SSL_CTX * tcp_ssl_new_server_ctx(const char *cert, const char *private_key_file, const char *password){
   uint32_t options = SSL_CONNECT_IN_PARTS;
@@ -254,18 +259,62 @@ int tcp_ssl_free(struct tcp_pcb *tcp) {
   return 0;
 }
 
+#if AXTLS_2_0_0_SNDBUF
+int tcp_ssl_sndbuf(struct tcp_pcb *tcp){
+  int expected;
+  int available;
+  int result = -1;
+
+  if(tcp == NULL) {
+    return result;
+  }
+  tcp_ssl_t * tcp_ssl = tcp_ssl_get(tcp);
+  if(!tcp_ssl){
+    TCP_SSL_DEBUG("tcp_ssl_sndbuf: tcp_ssl is NULL\n");
+    return result;
+  }
+  available = tcp_sndbuf(tcp);
+  if(!available){
+    TCP_SSL_DEBUG("tcp_ssl_sndbuf: tcp_sndbuf is zero\n");
+    return 0;
+  }
+  result = available;
+  while((expected = ssl_calculate_write_length(tcp_ssl->ssl, result)) > available){
+    result -= (expected - available) + 4;
+  }
+
+  if(expected > 0){
+    //TCP_SSL_DEBUG("tcp_ssl_sndbuf: tcp_sndbuf is %d from %d\n", result, available);
+    return result;
+  }
+
+  return 0;
+}
+#endif
+
 int tcp_ssl_write(struct tcp_pcb *tcp, uint8_t *data, size_t len) {
   if(tcp == NULL) {
     return -1;
   }
-  tcp_ssl_t * axl = tcp_ssl_get(tcp);
-  if(!axl){
+  tcp_ssl_t * tcp_ssl = tcp_ssl_get(tcp);
+  if(!tcp_ssl){
     TCP_SSL_DEBUG("tcp_ssl_write: tcp_ssl is NULL\n");
     return 0;
   }
-  axl->last_wr = 0;
+  tcp_ssl->last_wr = 0;
 
-  int rc = ssl_write(axl->ssl, data, len);
+#if AXTLS_2_0_0_SNDBUF
+  int expected_len = ssl_calculate_write_length(tcp_ssl->ssl, len);
+  int available_len = tcp_sndbuf(tcp);
+  if(expected_len < 0 || expected_len > available_len){
+    TCP_SSL_DEBUG("tcp_ssl_write: data will not fit! %u < %d(%u)\r\n", available_len, expected_len, len);
+    return -1;
+  }
+#endif
+
+  int rc = ssl_write(tcp_ssl->ssl, data, len);
+
+  //TCP_SSL_DEBUG("tcp_ssl_write: %u -> %d (%d)\r\n", len, tcp_ssl->last_wr, rc);
 
   if (rc < 0){
     if(rc != SSL_CLOSE_NOTIFY) {
@@ -274,9 +323,7 @@ int tcp_ssl_write(struct tcp_pcb *tcp, uint8_t *data, size_t len) {
     return rc;
   }
 
-  //TCP_SSL_DEBUG("tcp_ssl_write: %u -> %d\r\n", len, axl->last_wr);
-
-  return axl->last_wr;
+  return tcp_ssl->last_wr;
 }
 
 /**
@@ -437,10 +484,10 @@ int ax_port_write(int fd, uint8_t *data, uint16_t len) {
   fd_data = tcp_ssl_get_by_fd(fd);
   if(fd_data == NULL) {
     //TCP_SSL_DEBUG("ax_port_write: tcp_ssl[%d] is NULL\n", fd);
-    return ERR_TCP_SSL_INVALID_CLIENTFD;
+    return ERR_MEM;
   }
 
-  if (fd_data->tcp == NULL || data == NULL || len == 0) {
+  if (data == NULL || len == 0) {
     return 0;
   }
 
@@ -448,9 +495,8 @@ int ax_port_write(int fd, uint8_t *data, uint16_t len) {
     tcp_len = tcp_sndbuf(fd_data->tcp);
     if(tcp_len == 0) {
       TCP_SSL_DEBUG("ax_port_write: tcp_sndbuf is zero: %d\n", len);
-      return -1;
+      return ERR_MEM;
     }
-
   } else {
     tcp_len = len;
   }
@@ -460,21 +506,19 @@ int ax_port_write(int fd, uint8_t *data, uint16_t len) {
   }
 
   err = tcp_write(fd_data->tcp, data, tcp_len, TCP_WRITE_FLAG_COPY);
-  if(err < SSL_OK) {
+  if(err < ERR_OK) {
     if (err == ERR_MEM) {
       TCP_SSL_DEBUG("ax_port_write: No memory %d (%d)\n", tcp_len, len);
       return err;
     }
     TCP_SSL_DEBUG("ax_port_write: tcp_write error: %d\n", err);
-  }
-
-
-  if (err == ERR_OK) {
-    //TCP_SSL_DEBUG("ax_port_write: tcp_output length %d / %d\n", tcp_len, len);
+    return err;
+  } else if (err == ERR_OK) {
+    //TCP_SSL_DEBUG("ax_port_write: tcp_output: %d / %d\n", tcp_len, len);
     err = tcp_output(fd_data->tcp);
     if(err != ERR_OK) {
       TCP_SSL_DEBUG("ax_port_write: tcp_output err: %d\n", err);
-      return 0;
+      return err;
     }
   }
 

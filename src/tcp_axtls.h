@@ -38,6 +38,10 @@ extern "C" {
 
 #include "include/ssl.h"
 
+#ifndef AXTLS_2_0_0_SNDBUF
+#define AXTLS_2_0_0_SNDBUF 0
+#endif
+
 #define ERR_TCP_SSL_INVALID_SSL           -101
 #define ERR_TCP_SSL_INVALID_TCP           -102
 #define ERR_TCP_SSL_INVALID_CLIENTFD      -103
@@ -67,6 +71,11 @@ int tcp_ssl_is_server(struct tcp_pcb *tcp);
 
 int tcp_ssl_free(struct tcp_pcb *tcp);
 int tcp_ssl_read(struct tcp_pcb *tcp, struct pbuf *p);
+
+#if AXTLS_2_0_0_SNDBUF
+int tcp_ssl_sndbuf(struct tcp_pcb *tcp);
+#endif
+
 int tcp_ssl_write(struct tcp_pcb *tcp, uint8_t *data, size_t len);
 
 void tcp_ssl_file(tcp_ssl_file_cb_t cb, void * arg);
