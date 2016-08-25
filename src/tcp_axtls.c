@@ -37,6 +37,8 @@ uint16_t default_private_key_len = 0;
 uint8_t * default_certificate = NULL;
 uint16_t default_certificate_len = 0;
 
+static uint8_t _tcp_ssl_has_client = 0;
+
 SSL_CTX * tcp_ssl_new_server_ctx(const char *cert, const char *private_key_file, const char *password){
   uint32_t options = SSL_CONNECT_IN_PARTS;
   SSL_CTX *ssl_ctx;
@@ -94,6 +96,10 @@ typedef struct tcp_ssl_pcb tcp_ssl_t;
 static tcp_ssl_t * tcp_ssl_array = NULL;
 static int tcp_ssl_next_fd = 0;
 
+uint8_t tcp_ssl_has_client(){
+  return _tcp_ssl_has_client;
+}
+
 tcp_ssl_t * tcp_ssl_new(struct tcp_pcb *tcp) {
 
   if(tcp_ssl_next_fd < 0){
@@ -129,7 +135,7 @@ tcp_ssl_t * tcp_ssl_new(struct tcp_pcb *tcp) {
     item->next = new_item;
   }
 
-  //TCP_SSL_DEBUG("tcp_ssl_new: %d\n", new_item->fd);
+  TCP_SSL_DEBUG("tcp_ssl_new: %d\n", new_item->fd);
   return new_item;
 }
 
@@ -205,6 +211,7 @@ int tcp_ssl_new_server(struct tcp_pcb *tcp, SSL_CTX* ssl_ctx){
   tcp_ssl->type = TCP_SSL_TYPE_SERVER;
   tcp_ssl->ssl_ctx = ssl_ctx;
 
+  _tcp_ssl_has_client = 1;
   tcp_ssl->ssl = ssl_server_new(ssl_ctx, tcp_ssl->fd);
   if(tcp_ssl->ssl == NULL){
     TCP_SSL_DEBUG("tcp_ssl_new_server: failed to allocate ssl\n");
@@ -228,11 +235,13 @@ int tcp_ssl_free(struct tcp_pcb *tcp) {
     if(item->tcp_pbuf != NULL){
       pbuf_free(item->tcp_pbuf);
     }
-    //TCP_SSL_DEBUG("tcp_ssl_free: %d\n", item->fd);
+    TCP_SSL_DEBUG("tcp_ssl_free: %d\n", item->fd);
     if(item->ssl)
       ssl_free(item->ssl);
     if(item->type == TCP_SSL_TYPE_CLIENT && item->ssl_ctx)
       ssl_ctx_free(item->ssl_ctx);
+    if(item->type == TCP_SSL_TYPE_SERVER)
+      _tcp_ssl_has_client = 0;
     free(item);
     return 0;
   }
@@ -249,13 +258,14 @@ int tcp_ssl_free(struct tcp_pcb *tcp) {
   if(i->tcp_pbuf != NULL){
     pbuf_free(i->tcp_pbuf);
   }
-  //TCP_SSL_DEBUG("tcp_ssl_free: %d\n", i->fd);
+  TCP_SSL_DEBUG("tcp_ssl_free: %d\n", i->fd);
   if(i->ssl)
     ssl_free(i->ssl);
   if(i->type == TCP_SSL_TYPE_CLIENT && i->ssl_ctx)
     ssl_ctx_free(i->ssl_ctx);
+  if(i->type == TCP_SSL_TYPE_SERVER)
+    _tcp_ssl_has_client = 0;
   free(i);
-
   return 0;
 }
 

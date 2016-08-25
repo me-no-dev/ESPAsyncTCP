@@ -180,14 +180,12 @@ class AsyncServer {
     tcp_pcb* _pcb;
     struct pending_pcb * _pending;
     SSL_CTX * _ssl_ctx;
-    size_t _clients_waiting;
     AcConnectHandler _connect_cb;
     void* _connect_cb_arg;
     AcSSlFileHandler _file_cb;
     void* _file_cb_arg;
 
   public:
-    static bool _ssl_hasClient;
 
     AsyncServer(IPAddress addr, uint16_t port);
     AsyncServer(uint16_t port);

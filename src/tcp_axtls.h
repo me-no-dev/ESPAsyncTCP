@@ -63,6 +63,8 @@ typedef void (* tcp_ssl_handshake_cb_t)(void *arg, struct tcp_pcb *tcp, SSL *ssl
 typedef void (* tcp_ssl_error_cb_t)(void *arg, struct tcp_pcb *tcp, int8_t error);
 typedef int (* tcp_ssl_file_cb_t)(void *arg, const char *filename, uint8_t **buf);
 
+uint8_t tcp_ssl_has_client();
+
 int tcp_ssl_new_client(struct tcp_pcb *tcp);
 
 SSL_CTX * tcp_ssl_new_server_ctx(const char *cert, const char *private_key_file, const char *password);

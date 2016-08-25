@@ -30,9 +30,6 @@ extern "C"{
 }
 #include <tcp_axtls.h>
 
-
-bool AsyncServer::_ssl_hasClient = false;
-
 /*
   Async TCP Client
 */
@@ -233,7 +230,7 @@ size_t AsyncClient::add(const char* data, size_t size) {
     int sent = tcp_ssl_write(_pcb, (uint8_t*)data, size);
     if(sent >= 0)
       return sent;
-    //ssl error
+    _close();
     return 0;
   }
   size_t will_send = (room < size) ? room : size;
@@ -294,9 +291,6 @@ int8_t AsyncClient::_close(){
   int8_t err = ERR_OK;
   if(_pcb) {
     if(_pcb_secure){
-      if(tcp_ssl_is_server(_pcb) == 1 && AsyncServer::_ssl_hasClient){
-        AsyncServer::_ssl_hasClient = false;
-      }
       tcp_ssl_free(_pcb);
     }
     tcp_arg(_pcb, NULL);
@@ -318,9 +312,6 @@ int8_t AsyncClient::_close(){
 void AsyncClient::_error(int8_t err) {
   if(_pcb){
     if(_pcb_secure){
-      if(tcp_ssl_is_server(_pcb) == 1 && AsyncServer::_ssl_hasClient){
-        AsyncServer::_ssl_hasClient = false;
-      }
       tcp_ssl_free(_pcb);
     }
     tcp_arg(_pcb, NULL);
@@ -361,6 +352,7 @@ int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
     int read_bytes = tcp_ssl_read(pcb, pb);
     if(read_bytes < 0){
       if (read_bytes != SSL_CLOSE_NOTIFY) {
+        ets_printf("_recv err: %d\n", read_bytes);
         _close();
       }
       return read_bytes;
@@ -393,6 +385,7 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
     return ERR_OK;
   }
   uint32_t now = millis();
+
   // ACK Timeout
   if(_pcb_busy && _ack_timeout && (now - _pcb_sent_at) >= _ack_timeout){
     _pcb_busy = false;
@@ -401,10 +394,16 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
     return ERR_OK;
   }
   // RX Timeout
-  if(_rx_since_timeout && now - _rx_last_packet >= _rx_since_timeout * 1000){
+  if(_rx_since_timeout && (now - _rx_last_packet) >= (_rx_since_timeout * 1000)){
     _close();
     return ERR_OK;
   }
+  // SSL Handshake Timeout
+  if(_pcb_secure && !_handshake_done && (now - _rx_last_packet) >= 2000){
+    _close();
+    return ERR_OK;
+  }
+
   // Everything is fine
   if(_poll_cb)
     _poll_cb(_poll_cb_arg, this);
@@ -711,7 +710,6 @@ AsyncServer::AsyncServer(IPAddress addr, uint16_t port)
   , _pcb(0)
   , _pending(NULL)
   , _ssl_ctx(NULL)
-  , _clients_waiting(0)
   , _connect_cb(0)
   , _connect_cb_arg(0)
   , _file_cb(0)
@@ -725,7 +723,6 @@ AsyncServer::AsyncServer(uint16_t port)
   , _pcb(0)
   , _pending(NULL)
   , _ssl_ctx(NULL)
-  , _clients_waiting(0)
   , _connect_cb(0)
   , _connect_cb_arg(0)
   , _file_cb(0)
@@ -833,7 +830,7 @@ int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
       tcp_nagle_enable(pcb);
 
     if(_ssl_ctx){
-      if(_ssl_hasClient || _pending){
+      if(tcp_ssl_has_client() || _pending){
         struct pending_pcb * new_item = (struct pending_pcb*)malloc(sizeof(struct pending_pcb));
         if(!new_item){
           //ets_printf("### malloc new pending failed!\n");
@@ -842,7 +839,6 @@ int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
           }
           return ERR_OK;
         }
-        _clients_waiting++;
         //ets_printf("### put to wait: %d\n", _clients_waiting);
         new_item->pcb = pcb;
         new_item->pb = NULL;
@@ -863,7 +859,6 @@ int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
       } else {
         AsyncClient *c = new AsyncClient(pcb, _ssl_ctx);
         if(c){
-            _ssl_hasClient = true;
             c->onConnect([this](void * arg, AsyncClient *c){
               _connect_cb(_connect_cb_arg, c);
             }, this);
@@ -885,7 +880,7 @@ int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
 }
 
 int8_t AsyncServer::_poll(tcp_pcb* pcb){
-  if(!_ssl_hasClient && _pending){
+  if(!tcp_ssl_has_client() && _pending){
     struct pending_pcb * p = _pending;
     if(p->pcb == pcb){
       _pending = _pending->next;
@@ -896,8 +891,6 @@ int8_t AsyncServer::_poll(tcp_pcb* pcb){
       p->next = b->next;
       p = b;
     }
-    _ssl_hasClient = true;
-    _clients_waiting--;
     //ets_printf("### remove from wait: %d\n", _clients_waiting);
     AsyncClient *c = new AsyncClient(pcb, _ssl_ctx);
     if(c){
@@ -919,7 +912,6 @@ int8_t AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, int8_t err){
   struct pending_pcb * p;
 
   if(!pb){
-    _clients_waiting--;
     //ets_printf("### close from wait: %d\n", _clients_waiting);
     p = _pending;
     if(p->pcb == pcb){
