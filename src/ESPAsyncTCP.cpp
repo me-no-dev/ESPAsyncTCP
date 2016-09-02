@@ -289,9 +289,10 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
     }
   }
   if(!_pcb_secure && _connect_cb)
-#endif
+#else
   }
   if(_connect_cb)
+#endif
     _connect_cb(_connect_cb_arg, this);
   return ERR_OK;
 }

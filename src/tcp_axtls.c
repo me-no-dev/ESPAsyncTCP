@@ -22,6 +22,7 @@
  * Compatibility for AxTLS with LWIP raw tcp mode (http://lwip.wikia.com/wiki/Raw/TCP)
  * Original Code and Inspiration: Slavey Karadzhov
  */
+#include <async_config.h>
 #if ASYNC_TCP_SSL_ENABLED
 
 #include "lwip/opt.h"

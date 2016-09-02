@@ -23,6 +23,7 @@
 #define SYNCCLIENT_H_
 
 #include "Client.h"
+#include <async_config.h>
 class cbuf;
 class AsyncClient;
 
