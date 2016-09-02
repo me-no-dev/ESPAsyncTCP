@@ -270,7 +270,7 @@ int tcp_ssl_free(struct tcp_pcb *tcp) {
   return 0;
 }
 
-#if AXTLS_2_0_0_SNDBUF
+#ifdef AXTLS_2_0_0_SNDBUF
 int tcp_ssl_sndbuf(struct tcp_pcb *tcp){
   int expected;
   int available;
@@ -314,7 +314,7 @@ int tcp_ssl_write(struct tcp_pcb *tcp, uint8_t *data, size_t len) {
   }
   tcp_ssl->last_wr = 0;
 
-#if AXTLS_2_0_0_SNDBUF
+#ifdef AXTLS_2_0_0_SNDBUF
   int expected_len = ssl_calculate_write_length(tcp_ssl->ssl, len);
   int available_len = tcp_sndbuf(tcp);
   if(expected_len < 0 || expected_len > available_len){

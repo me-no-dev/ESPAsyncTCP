@@ -42,10 +42,6 @@ extern "C" {
 
 #include "include/ssl.h"
 
-#ifndef AXTLS_2_0_0_SNDBUF
-#define AXTLS_2_0_0_SNDBUF 0
-#endif
-
 #define ERR_TCP_SSL_INVALID_SSL           -101
 #define ERR_TCP_SSL_INVALID_TCP           -102
 #define ERR_TCP_SSL_INVALID_CLIENTFD      -103
@@ -57,10 +53,6 @@ extern "C" {
 
 #define tcp_ssl_ssl_write(A, B, C) tcp_ssl_write(A, B, C)
 #define tcp_ssl_ssl_read(A, B) tcp_ssl_read(A, B)
-
-#ifndef TCP_SSL_DEBUG
-  #define TCP_SSL_DEBUG(...) //ets_printf(__VA_ARGS__)
-#endif
 
 typedef void (* tcp_ssl_data_cb_t)(void *arg, struct tcp_pcb *tcp, uint8_t * data, size_t len);
 typedef void (* tcp_ssl_handshake_cb_t)(void *arg, struct tcp_pcb *tcp, SSL *ssl);
@@ -78,7 +70,7 @@ int tcp_ssl_is_server(struct tcp_pcb *tcp);
 int tcp_ssl_free(struct tcp_pcb *tcp);
 int tcp_ssl_read(struct tcp_pcb *tcp, struct pbuf *p);
 
-#if AXTLS_2_0_0_SNDBUF
+#ifdef AXTLS_2_0_0_SNDBUF
 int tcp_ssl_sndbuf(struct tcp_pcb *tcp);
 #endif
 

@@ -29,6 +29,8 @@
 class AsyncClient;
 
 #define ASYNC_MAX_ACK_TIME 5000
+#define ASYNC_WRITE_FLAG_COPY 0x01 //will allocate new buffer to hold the data while sending (else will hold reference to the data given)
+#define ASYNC_WRITE_FLAG_MORE 0x02 //will not send PSH flag, meaning that there should be more data to be sent before the application should react.
 
 typedef std::function<void(void*, AsyncClient*)> AcConnectHandler;
 typedef std::function<void(void*, AsyncClient*, size_t len, uint32_t time)> AcAckHandler;
@@ -132,7 +134,7 @@ class AsyncClient {
 
     bool canSend();//ack is not pending
     size_t space();
-    size_t add(const char* data, size_t size);//add for sending
+    size_t add(const char* data, size_t size, uint8_t apiflags=0);//add for sending
     bool send();//send all data added with the method above
     size_t ack(size_t len); //ack data that you have not acked using the method below
     void ackLater(){ _ack_pcb = false; } //will not ack the current packet. Call from onData
@@ -142,7 +144,7 @@ class AsyncClient {
 #endif
 
     size_t write(const char* data);
-    size_t write(const char* data, size_t size); //only when canSend() == true
+    size_t write(const char* data, size_t size, uint8_t apiflags=0); //only when canSend() == true
 
     uint8_t state();
     bool connecting();

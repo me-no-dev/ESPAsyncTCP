@@ -216,38 +216,14 @@ size_t AsyncClient::write(const char* data) {
   return write(data, strlen(data));
 }
 
-size_t AsyncClient::write(const char* data, size_t size) {
-  if(!_pcb || size == 0 || data == NULL)
+size_t AsyncClient::write(const char* data, size_t size, uint8_t apiflags) {
+  size_t will_send = add(data, size, apiflags);
+  if(!will_send || !send())
     return 0;
-  if(!canSend())
-    return 0;
-#if ASYNC_TCP_SSL_ENABLED
-  if(_pcb_secure){
-    int sent = tcp_ssl_write(_pcb, (uint8_t*)data, size);
-    if(sent >= 0)
-      return sent;
-    _close();
-    return 0;
-  }
-#endif
-  size_t room = space();
-  size_t will_send = (room < size) ? room : size;
-  int8_t err = tcp_write(_pcb, data, will_send, 0);
-  if(err != ERR_OK)
-    return 0;
-  err = tcp_output(_pcb);
-  if(err != ERR_OK)
-    return 0;
-  _pcb_sent_at = millis();
-  _pcb_busy = true;
-  if(will_send < size){
-    size_t left = size - will_send;
-    return will_send + write(data+will_send, left);
-  }
-  return size;
+  return will_send;
 }
 
-size_t AsyncClient::add(const char* data, size_t size) {
+size_t AsyncClient::add(const char* data, size_t size, uint8_t apiflags) {
   if(!_pcb || size == 0 || data == NULL)
     return 0;
   size_t room = space();
@@ -263,7 +239,7 @@ size_t AsyncClient::add(const char* data, size_t size) {
   }
 #endif
   size_t will_send = (room < size) ? room : size;
-  int8_t err = tcp_write(_pcb, data, will_send, 0);
+  int8_t err = tcp_write(_pcb, data, will_send, apiflags);
   if(err != ERR_OK)
     return 0;
   return will_send;
@@ -274,8 +250,6 @@ bool AsyncClient::send(){
   if(_pcb_secure)
     return true;
 #endif
-  if(!canSend())
-    return false;
   if(tcp_output(_pcb) == ERR_OK){
     _pcb_busy = true;
     _pcb_sent_at = millis();
@@ -375,7 +349,7 @@ void AsyncClient::_ssl_error(int8_t err){
 
 int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
   _rx_last_packet = millis();
-  //ets_printf("ack: %u\n", len);
+  ASYNC_TCP_DEBUG("_sent: %u\n", len);
   _pcb_busy = false;
   if(_sent_cb)
     _sent_cb(_sent_cb_arg, this, len, (millis() - _pcb_sent_at));
@@ -383,18 +357,19 @@ int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
 }
 
 int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
-  if(pb == 0){
-    //ets_printf("_pb null! %d\n", err);
+  if(pb == NULL){
+    ASYNC_TCP_DEBUG("_recv: pb == NULL! Closing... %d\n", err);
     return _close();
-  } //else ets_printf("_recv: %d\n", pb->tot_len);
+  }
 
   _rx_last_packet = millis();
 #if ASYNC_TCP_SSL_ENABLED
   if(_pcb_secure){
+    ASYNC_TCP_DEBUG("_recv: %d\n", pb->tot_len);
     int read_bytes = tcp_ssl_read(pcb, pb);
     if(read_bytes < 0){
       if (read_bytes != SSL_CLOSE_NOTIFY) {
-        ets_printf("_recv err: %d\n", read_bytes);
+        ASYNC_TCP_DEBUG("_recv err: %d\n", read_bytes);
         _close();
       }
       return read_bytes;
@@ -406,13 +381,13 @@ int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
     //we should not ack before we assimilate the data
     _ack_pcb = true;
     pbuf *b = pb;
+    ASYNC_TCP_DEBUG("_recv: %d\n", b->len);
     if(_recv_cb)
       _recv_cb(_recv_cb_arg, this, b->payload, b->len);
     if(!_ack_pcb)
       _rx_ack_len += b->len;
     else
       tcp_recved(pcb, b->len);
-    //pb = pbuf_dechain(b);
     pb = b->next;
     b->next = NULL;
     pbuf_free(b);
@@ -697,7 +672,7 @@ size_t AsyncClient::space(){
   if((_pcb != NULL) && (_pcb->state == 4) && _handshake_done){
     uint16_t s = tcp_sndbuf(_pcb);
     if(_pcb_secure){
-#if AXTLS_2_0_0_SNDBUF
+#ifdef AXTLS_2_0_0_SNDBUF
       return tcp_ssl_sndbuf(_pcb);
 #else
       if(s >= 128) //safe approach
@@ -910,13 +885,13 @@ int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
       if(tcp_ssl_has_client() || _pending){
         struct pending_pcb * new_item = (struct pending_pcb*)malloc(sizeof(struct pending_pcb));
         if(!new_item){
-          //ets_printf("### malloc new pending failed!\n");
+          ASYNC_TCP_DEBUG("### malloc new pending failed!\n");
           if(tcp_close(pcb) != ERR_OK){
             tcp_abort(pcb);
           }
           return ERR_OK;
         }
-        //ets_printf("### put to wait: %d\n", _clients_waiting);
+        ASYNC_TCP_DEBUG("### put to wait: %d\n", _clients_waiting);
         new_item->pcb = pcb;
         new_item->pb = NULL;
         new_item->next = NULL;
@@ -978,7 +953,7 @@ int8_t AsyncServer::_poll(tcp_pcb* pcb){
       p->next = b->next;
       p = b;
     }
-    //ets_printf("### remove from wait: %d\n", _clients_waiting);
+    ASYNC_TCP_DEBUG("### remove from wait: %d\n", _clients_waiting);
     AsyncClient *c = new AsyncClient(pcb, _ssl_ctx);
     if(c){
       c->onConnect([this](void * arg, AsyncClient *c){
@@ -999,7 +974,7 @@ int8_t AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, int8_t err){
   struct pending_pcb * p;
 
   if(!pb){
-    //ets_printf("### close from wait: %d\n", _clients_waiting);
+    ASYNC_TCP_DEBUG("### close from wait: %d\n", _clients_waiting);
     p = _pending;
     if(p->pcb == pcb){
       _pending = _pending->next;
@@ -1017,7 +992,7 @@ int8_t AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, int8_t err){
     tcp_close(pcb);
     tcp_abort(pcb);
   } else {
-    //ets_printf("### wait _recv: %u %d\n", pb->tot_len, _clients_waiting);
+    ASYNC_TCP_DEBUG("### wait _recv: %u %d\n", pb->tot_len, _clients_waiting);
     p = _pending;
     while(p && p->pcb != pcb)
       p = p->next;
