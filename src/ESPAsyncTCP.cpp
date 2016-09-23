@@ -536,6 +536,12 @@ bool AsyncClient::getNoDelay(){
   return tcp_nagle_disabled(_pcb);
 }
 
+uint16_t AsyncClient::getMss(){
+  if(_pcb)
+    return tcp_mss(_pcb);
+  return 0;
+}
+
 uint32_t AsyncClient::getRemoteAddress() {
   if(!_pcb)
     return 0;

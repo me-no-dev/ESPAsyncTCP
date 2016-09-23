@@ -153,6 +153,7 @@ class AsyncClient {
     bool disconnected();
     bool freeable();//disconnected or disconnecting
 
+    uint16_t getMss();
     uint32_t getRxTimeout();
     void setRxTimeout(uint32_t timeout);//no RX data timeout for the connection in seconds
     uint32_t getAckTimeout();
