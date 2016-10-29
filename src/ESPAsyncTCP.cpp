@@ -68,6 +68,7 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
 {
   _pcb = pcb;
   if(_pcb){
+    _rx_last_packet = millis();
     tcp_setprio(_pcb, TCP_PRIO_MIN);
     tcp_arg(_pcb, this);
     tcp_recv(_pcb, &_s_recv);
@@ -155,6 +156,7 @@ AsyncClient& AsyncClient::operator=(const AsyncClient& other){
 
   _pcb = other._pcb;
   if (_pcb) {
+    _rx_last_packet = millis();
     tcp_setprio(_pcb, TCP_PRIO_MIN);
     tcp_arg(_pcb, this);
     tcp_recv(_pcb, &_s_recv);
@@ -273,6 +275,7 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
   _pcb = reinterpret_cast<tcp_pcb*>(pcb);
   if(_pcb){
     _pcb_busy = false;
+    _rx_last_packet = millis();
     tcp_setprio(_pcb, TCP_PRIO_MIN);
     tcp_recv(_pcb, &_s_recv);
     tcp_sent(_pcb, &_s_sent);
