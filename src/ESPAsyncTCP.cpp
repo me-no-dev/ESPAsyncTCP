@@ -59,6 +59,9 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
   , _pcb_sent_at(0)
   , _close_pcb(false)
   , _ack_pcb(true)
+  , _tx_unacked_len(0)
+  , _tx_acked_len(0)
+  , _tx_unsent_len(0)
   , _rx_last_packet(0)
   , _rx_since_timeout(0)
   , _ack_timeout(ASYNC_MAX_ACK_TIME)
@@ -234,8 +237,10 @@ size_t AsyncClient::add(const char* data, size_t size, uint8_t apiflags) {
 #if ASYNC_TCP_SSL_ENABLED
   if(_pcb_secure){
     int sent = tcp_ssl_write(_pcb, (uint8_t*)data, size);
-    if(sent >= 0)
+    if(sent >= 0){
+      _tx_unacked_len += sent;
       return sent;
+    }
     _close();
     return 0;
   }
@@ -244,6 +249,7 @@ size_t AsyncClient::add(const char* data, size_t size, uint8_t apiflags) {
   int8_t err = tcp_write(_pcb, data, will_send, apiflags);
   if(err != ERR_OK)
     return 0;
+  _tx_unsent_len += will_send;
   return will_send;
 }
 
@@ -255,8 +261,11 @@ bool AsyncClient::send(){
   if(tcp_output(_pcb) == ERR_OK){
     _pcb_busy = true;
     _pcb_sent_at = millis();
+    _tx_unacked_len += _tx_unsent_len;
+    _tx_unsent_len = 0;
     return true;
   }
+  _tx_unsent_len = 0;
   return false;
 }
 
@@ -354,9 +363,14 @@ void AsyncClient::_ssl_error(int8_t err){
 int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
   _rx_last_packet = millis();
   ASYNC_TCP_DEBUG("_sent: %u\n", len);
-  _pcb_busy = false;
-  if(_sent_cb)
-    _sent_cb(_sent_cb_arg, this, len, (millis() - _pcb_sent_at));
+  _tx_unacked_len -= len;
+  _tx_acked_len += len;
+  if(_tx_unacked_len == 0){
+    _pcb_busy = false;
+    if(_sent_cb)
+      _sent_cb(_sent_cb_arg, this, _tx_acked_len, (millis() - _pcb_sent_at));
+      _tx_acked_len = 0;
+  }
   return ERR_OK;
 }
 
