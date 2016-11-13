@@ -649,7 +649,7 @@ bool AsyncClient::freeable(){
 }
 
 bool AsyncClient::canSend(){
-  return space() > 0;
+  return !_pcb_busy && (space() > 0);
 }
 
 
