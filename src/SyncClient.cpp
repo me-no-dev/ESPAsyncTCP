@@ -62,6 +62,7 @@ int SyncClient::connect(IPAddress ip, uint16_t port){
     return 0;
   _client = new AsyncClient();
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
+  _attachCallbacks_Disconnect();
 #if ASYNC_TCP_SSL_ENABLED
   if(_client->connect(ip, port, secure)){
 #else
