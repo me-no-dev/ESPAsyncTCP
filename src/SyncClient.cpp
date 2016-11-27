@@ -62,6 +62,7 @@ int SyncClient::connect(IPAddress ip, uint16_t port){
     return 0;
   _client = new AsyncClient();
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
+  _attachCallbacks_Disconnect();
 #if ASYNC_TCP_SSL_ENABLED
   if(_client->connect(ip, port, secure)){
 #else
@@ -83,6 +84,7 @@ int SyncClient::connect(const char *host, uint16_t port){
     return 0;
   _client = new AsyncClient();
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
+  _attachCallbacks_Disconnect();
 #if ASYNC_TCP_SSL_ENABLED
   if(_client->connect(host, port, secure)){
 #else
@@ -191,14 +193,22 @@ void SyncClient::_onConnect(AsyncClient *c){
     delete b;
   }
   _tx_buffer = new cbuf(_tx_buffer_size);
-  _attachCallbacks();
+  _attachCallbacks_AfterConnected();
 }
 
 void SyncClient::_attachCallbacks(){
+  _attachCallbacks_Disconnect();
+  _attachCallbacks_AfterConnected();
+}
+
+void SyncClient::_attachCallbacks_AfterConnected(){
   _client->onAck([](void *obj, AsyncClient* c, size_t len, uint32_t time){ ((SyncClient*)(obj))->_sendBuffer(); }, this);
-  _client->onDisconnect([](void *obj, AsyncClient* c){ ((SyncClient*)(obj))->_onDisconnect(); delete c; }, this);
   _client->onData([](void *obj, AsyncClient* c, void *data, size_t len){ ((SyncClient*)(obj))->_onData(data, len); }, this);
   _client->onTimeout([](void *obj, AsyncClient* c, uint32_t time){ c->close(); }, this);
+}
+
+void SyncClient::_attachCallbacks_Disconnect(){
+  _client->onDisconnect([](void *obj, AsyncClient* c){ ((SyncClient*)(obj))->_onDisconnect(); delete c; }, this);
 }
 
 size_t SyncClient::write(uint8_t data){
