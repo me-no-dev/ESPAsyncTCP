@@ -68,7 +68,7 @@ int SyncClient::connect(IPAddress ip, uint16_t port){
 #else
   if(_client->connect(ip, port)){
 #endif
-    while(_client != NULL && !_client->connected() && !_client->disconnecting())
+    while(_client != NULL && !_client->connected() && _client->connecting())
       delay(1);
     return connected();
   }
@@ -90,7 +90,7 @@ int SyncClient::connect(const char *host, uint16_t port){
 #else
   if(_client->connect(host, port)){
 #endif
-    while(_client != NULL && !_client->connected() && !_client->disconnecting())
+    while(_client != NULL && !_client->connected() && _client->connecting())
       delay(1);
     return connected();
   }
