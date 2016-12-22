@@ -116,8 +116,9 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
   }
 
   tcp_pcb* pcb = tcp_new();
-  if (!pcb) //could not allocate pcb
+  if (!pcb){ //could not allocate pcb
     return false;
+  }
 
 #if ASYNC_TCP_SSL_ENABLED
   _pcb_secure = secure;

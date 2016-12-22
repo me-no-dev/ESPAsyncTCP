@@ -68,7 +68,7 @@ int SyncClient::connect(IPAddress ip, uint16_t port){
 #else
   if(_client->connect(ip, port)){
 #endif
-    while(_client != NULL && !_client->connected() && _client->connecting())
+    while(_client != NULL && !_client->connected() && !_client->disconnecting())
       delay(1);
     return connected();
   }
@@ -80,8 +80,9 @@ int SyncClient::connect(const char *host, uint16_t port, bool secure){
 #else
 int SyncClient::connect(const char *host, uint16_t port){
 #endif
-  if(_client != NULL && connected())
+  if(_client != NULL && connected()){
     return 0;
+  }
   _client = new AsyncClient();
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
   _attachCallbacks_Disconnect();
@@ -90,7 +91,7 @@ int SyncClient::connect(const char *host, uint16_t port){
 #else
   if(_client->connect(host, port)){
 #endif
-    while(_client != NULL && !_client->connected() && _client->connecting())
+    while(_client != NULL && !_client->connected() && !_client->disconnecting())
       delay(1);
     return connected();
   }
@@ -179,14 +180,10 @@ void SyncClient::_onDisconnect(){
     _tx_buffer = NULL;
     delete b;
   }
-  while(_rx_buffer != NULL){
-    cbuf *b = _rx_buffer;
-    _rx_buffer = b->next;
-    delete b;
-  }
 }
 
 void SyncClient::_onConnect(AsyncClient *c){
+  _client = c;
   if(_tx_buffer != NULL){
     cbuf *b = _tx_buffer;
     _tx_buffer = NULL;
