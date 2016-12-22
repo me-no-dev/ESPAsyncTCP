@@ -257,7 +257,9 @@ int SyncClient::read(uint8_t *data, size_t len){
     _rx_buffer = _rx_buffer->next;
     size_t toRead = b->available();
     readSoFar += b->read((char*)(data+readSoFar), toRead);
-    _client->ack(b->size() - 1);
+    if(connected()){
+        _client->ack(b->size() - 1);
+    }
     delete b;
   }
   if(_rx_buffer != NULL && readSoFar < len){
