@@ -858,6 +858,9 @@ void AsyncServer::end(){
     tcp_abort(_pcb);
     tcp_arg(_pcb, NULL);
     tcp_accept(_pcb, NULL);
+    if(tcp_close(_pcb) != ERR_OK){
+      tcp_abort(_pcb);
+    }
     _pcb = NULL;
   }
 #if ASYNC_TCP_SSL_ENABLED
