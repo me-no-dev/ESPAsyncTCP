@@ -109,8 +109,14 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
   if (_pcb) //already connected
     return false;
   ip_addr_t addr;
+#ifdef ESP8266
   addr.addr = ip;
   netif* interface = ip_route(&addr);
+#elif ESP32
+  addr.type = IPADDR_TYPE_V4;
+  addr.u_addr.ip4.addr = ip;
+  netif* interface = ip4_route(&addr.u_addr.ip4);
+#endif
   if (!interface){ //no route to host
     return false;
   }
@@ -138,10 +144,15 @@ bool AsyncClient::connect(const char* host, uint16_t port){
   ip_addr_t addr;
   err_t err = dns_gethostbyname(host, &addr, (dns_found_callback)&_s_dns_found, this);
   if(err == ERR_OK) {
+#ifdef ESP8266
+    const uint32_t ip = addr.addr;
+#elif ESP32
+    const uint32_t ip = addr.u_addr.ip4.addr;
+#endif
 #if ASYNC_TCP_SSL_ENABLED
-    return connect(IPAddress(addr.addr), port, secure);
+    return connect(IPAddress(ip), port, secure);
 #else
-    return connect(IPAddress(addr.addr), port);
+    return connect(IPAddress(ip), port);
 #endif
   } else if(err == ERR_INPROGRESS) {
 #if ASYNC_TCP_SSL_ENABLED
@@ -185,7 +196,12 @@ AsyncClient& AsyncClient::operator=(const AsyncClient& other){
 }
 
 bool AsyncClient::operator==(const AsyncClient &other) {
-  return (_pcb != NULL && other._pcb != NULL && (_pcb->remote_ip.addr == other._pcb->remote_ip.addr) && (_pcb->remote_port == other._pcb->remote_port));
+#ifdef ESP8266
+    const uint32_t lhsIp = _pcb->remote_ip.addr, rhsIp = other._pcb->remote_ip.addr;
+#elif ESP32
+    const uint32_t lhsIp = _pcb->remote_ip.u_addr.ip4.addr, rhsIp = other._pcb->remote_ip.u_addr.ip4.addr;
+#endif
+  return (_pcb != NULL && other._pcb != NULL && (lhsIp == rhsIp) && (_pcb->remote_port == other._pcb->remote_port));
 }
 
 int8_t AsyncClient::abort(){
@@ -448,12 +464,18 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
   return ERR_OK;
 }
 
-void AsyncClient::_dns_found(ip_addr_t *ipaddr){
+void AsyncClient::_dns_found(struct ip_addr *ipaddr0){
+  const ip_addr_t *const ipaddr = (ip_addr_t *) ipaddr0;
   if(ipaddr){
+#ifdef ESP8266
+    const uint32_t ip = ipaddr->addr;
+#elif ESP32
+    const uint32_t ip = ipaddr->u_addr.ip4.addr;
+#endif
 #if ASYNC_TCP_SSL_ENABLED
-    connect(IPAddress(ipaddr->addr), _connect_port, _pcb_secure);
+    connect(IPAddress(ip), _connect_port, _pcb_secure);
 #else
-    connect(IPAddress(ipaddr->addr), _connect_port);
+    connect(IPAddress(ip), _connect_port);
 #endif
   } else {
     if(_error_cb)
@@ -465,7 +487,7 @@ void AsyncClient::_dns_found(ip_addr_t *ipaddr){
 
 // lWIP Callbacks
 
-void AsyncClient::_s_dns_found(const char *name, ip_addr_t *ipaddr, void *arg){
+void AsyncClient::_s_dns_found(const char *name, struct ip_addr *ipaddr, void *arg){
   reinterpret_cast<AsyncClient*>(arg)->_dns_found(ipaddr);
 }
 
@@ -563,7 +585,12 @@ uint16_t AsyncClient::getMss(){
 uint32_t AsyncClient::getRemoteAddress() {
   if(!_pcb)
     return 0;
-  return _pcb->remote_ip.addr;
+  const ip_addr_t *const ip = &_pcb->remote_ip;
+#ifdef ESP8266
+  return ip->addr;
+#elif ESP32
+  return ip->u_addr.ip4.addr;
+#endif
 }
 
 uint16_t AsyncClient::getRemotePort() {
@@ -575,7 +602,12 @@ uint16_t AsyncClient::getRemotePort() {
 uint32_t AsyncClient::getLocalAddress() {
   if(!_pcb)
     return 0;
-  return _pcb->local_ip.addr;
+  const ip_addr_t *const ip = &_pcb->local_ip;
+#ifdef ESP8266
+  return ip->addr;
+#elif ESP32
+  return ip->u_addr.ip4.addr;
+#endif
 }
 
 uint16_t AsyncClient::getLocalPort() {
@@ -821,7 +853,12 @@ void AsyncServer::begin(){
   }
 
   ip_addr_t local_addr;
+#ifdef ESP8266
   local_addr.addr = (uint32_t) _addr;
+#elif ESP32
+  local_addr.type = IPADDR_TYPE_V4;
+  local_addr.u_addr.ip4.addr = (uint32_t) _addr;
+#endif
   err = tcp_bind(pcb, &local_addr, _port);
 
   if (err != ERR_OK) {
