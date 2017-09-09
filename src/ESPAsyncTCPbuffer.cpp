@@ -24,7 +24,12 @@
 
 
 #include <Arduino.h>
+
+#ifdef ESP8266
 #include <debug.h>
+#elif ESP32
+#define panic abort
+#endif
 
 #include "ESPAsyncTCPbuffer.h"
 

@@ -1,10 +1,16 @@
 #ifdef ESP8266
-#include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-#include <ArduinoOTA.h>
+  #include <ESP8266WiFi.h>
+  #include <ESP8266mDNS.h>
+#elif ESP31B
+  #include <ESP31BWiFi.h>
+#elif ESP32
+  #include <WiFi.h>
+  #include <ESPmDNS.h>
 #else
-#include <ESP31BWiFi.h>
+  #error "Unsupported platform."
 #endif
+
+#include <ArduinoOTA.h>
 #include "ESPAsyncTCP.h"
 #include "SyncClient.h"
 
@@ -20,9 +26,7 @@ void setup(){
   }
   Serial.printf("WiFi Connected!\n");
   Serial.println(WiFi.localIP());
-#ifdef ESP8266
   ArduinoOTA.begin();
-#endif
   
   SyncClient client;
   if(!client.connect("www.google.com", 80)){
@@ -48,7 +52,5 @@ void setup(){
 }
 
 void loop(){
-#ifdef ESP8266
   ArduinoOTA.handle();
-#endif
 }
