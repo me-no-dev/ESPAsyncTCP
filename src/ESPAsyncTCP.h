@@ -25,6 +25,7 @@
 #include <async_config.h>
 #include "IPAddress.h"
 #include <functional>
+#include <lwip/ip_addr.h>
 
 class AsyncClient;
 
@@ -41,6 +42,7 @@ typedef std::function<void(void*, AsyncClient*, uint32_t time)> AcTimeoutHandler
 struct tcp_pcb;
 struct pbuf;
 struct ip_addr;
+
 #if ASYNC_TCP_SSL_ENABLED
 struct SSL_;
 typedef struct SSL_ SSL;
@@ -91,13 +93,13 @@ class AsyncClient {
 #endif
     int8_t _poll(tcp_pcb* pcb);
     int8_t _sent(tcp_pcb* pcb, uint16_t len);
-    void _dns_found(struct ip_addr *ipaddr);
+    void _dns_found(ip_addr_t *ipaddr);
     static int8_t _s_poll(void *arg, struct tcp_pcb *tpcb);
     static int8_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
     static void _s_error(void *arg, int8_t err);
     static int8_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
     static int8_t _s_connected(void* arg, void* tpcb, int8_t err);
-    static void _s_dns_found(const char *name, struct ip_addr *ipaddr, void *arg);
+    static void _s_dns_found(const char *name, ip_addr_t *ipaddr, void *arg);
 #if ASYNC_TCP_SSL_ENABLED
     static void _s_data(void *arg, struct tcp_pcb *tcp, uint8_t * data, size_t len);
     static void _s_handshake(void *arg, struct tcp_pcb *tcp, SSL *ssl);
