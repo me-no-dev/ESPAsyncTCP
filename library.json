@@ -15,8 +15,5 @@
   "version": "1.1.0",
   "license": "LGPL-3.0",
   "frameworks": "arduino",
-  "platforms":"espressif",
-  "examples": [
-    "examples/*/*.ino"
-  ]
+  "platforms":"espressif8266"
 }
