@@ -74,10 +74,10 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
     _rx_last_packet = millis();
     tcp_setprio(_pcb, TCP_PRIO_MIN);
     tcp_arg(_pcb, this);
-    tcp_recv(_pcb, &_s_recv);
-    tcp_sent(_pcb, &_s_sent);
-    tcp_err(_pcb, &_s_error);
-    tcp_poll(_pcb, &_s_poll, 1);
+    tcp_recv(_pcb, (tcp_recv_fn)&_s_recv);
+    tcp_sent(_pcb, (tcp_sent_fn)&_s_sent);
+    tcp_err(_pcb, (tcp_err_fn)&_s_error);
+    tcp_poll(_pcb, (tcp_poll_fn)&_s_poll, 1);
 #if ASYNC_TCP_SSL_ENABLED
     if(ssl_ctx){
       if(tcp_ssl_new_server(_pcb, ssl_ctx) < 0){
@@ -125,7 +125,7 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
   _handshake_done = !secure;
 #endif
   tcp_arg(pcb, this);
-  tcp_err(pcb, &_s_error);
+  tcp_err(pcb, (tcp_err_fn)&_s_error);
   tcp_connect(pcb, &addr, port,(tcp_connected_fn)&_s_connected);
   return true;
 }
@@ -163,10 +163,10 @@ AsyncClient& AsyncClient::operator=(const AsyncClient& other){
     _rx_last_packet = millis();
     tcp_setprio(_pcb, TCP_PRIO_MIN);
     tcp_arg(_pcb, this);
-    tcp_recv(_pcb, &_s_recv);
-    tcp_sent(_pcb, &_s_sent);
-    tcp_err(_pcb, &_s_error);
-    tcp_poll(_pcb, &_s_poll, 1);
+    tcp_recv(_pcb, (tcp_recv_fn)&_s_recv);
+    tcp_sent(_pcb, (tcp_sent_fn)&_s_sent);
+    tcp_err(_pcb, (tcp_err_fn)&_s_error);
+    tcp_poll(_pcb, (tcp_poll_fn)&_s_poll, 1);
 #if ASYNC_TCP_SSL_ENABLED
     if(tcp_ssl_has(_pcb)){
       _pcb_secure = true;
@@ -287,9 +287,9 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
     _pcb_busy = false;
     _rx_last_packet = millis();
     tcp_setprio(_pcb, TCP_PRIO_MIN);
-    tcp_recv(_pcb, &_s_recv);
-    tcp_sent(_pcb, &_s_sent);
-    tcp_poll(_pcb, &_s_poll, 1);
+    tcp_recv(_pcb, (tcp_recv_fn)&_s_recv);
+    tcp_sent(_pcb, (tcp_sent_fn)&_s_sent);
+    tcp_poll(_pcb, (tcp_poll_fn)&_s_poll, 1);
 #if ASYNC_TCP_SSL_ENABLED
     if(_pcb_secure){
       if(tcp_ssl_new_client(_pcb) < 0){
@@ -836,7 +836,7 @@ void AsyncServer::begin(){
   }
   _pcb = listen_pcb;
   tcp_arg(_pcb, (void*) this);
-  tcp_accept(_pcb, &_s_accept);
+  tcp_accept(_pcb, (tcp_accept_fn)&_s_accept);
 }
 
 #if ASYNC_TCP_SSL_ENABLED
