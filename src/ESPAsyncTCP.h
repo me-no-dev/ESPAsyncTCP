@@ -84,19 +84,19 @@ class AsyncClient {
     uint16_t _connect_port;
 
     int8_t _close();
-    int8_t _connected(void* pcb, int8_t err);
-    void _error(int8_t err);
+    long _connected(void* pcb, long err);
+    void _error(long err);
 #if ASYNC_TCP_SSL_ENABLED
     void _ssl_error(int8_t err);
 #endif
-    int8_t _poll(tcp_pcb* pcb);
-    int8_t _sent(tcp_pcb* pcb, uint16_t len);
+    long _poll(tcp_pcb* pcb);
+    long _sent(tcp_pcb* pcb, uint16_t len);
     void _dns_found(struct ip_addr *ipaddr);
-    static int8_t _s_poll(void *arg, struct tcp_pcb *tpcb);
-    static int8_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
-    static void _s_error(void *arg, int8_t err);
-    static int8_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
-    static int8_t _s_connected(void* arg, void* tpcb, int8_t err);
+    static long _s_poll(void *arg, struct tcp_pcb *tpcb);
+    static long _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, long err);
+    static void _s_error(void *arg, long err);
+    static long _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
+    static long _s_connected(void* arg, void* tpcb, long err);
     static void _s_dns_found(const char *name, struct ip_addr *ipaddr, void *arg);
 #if ASYNC_TCP_SSL_ENABLED
     static void _s_data(void *arg, struct tcp_pcb *tcp, uint8_t * data, size_t len);
@@ -184,7 +184,7 @@ class AsyncClient {
     const char * errorToString(int8_t error);
     const char * stateToString();
 
-    int8_t _recv(tcp_pcb* pcb, pbuf* pb, int8_t err);
+    long _recv(tcp_pcb* pcb, pbuf* pb, long err);
 };
 
 #if ASYNC_TCP_SSL_ENABLED
@@ -224,15 +224,15 @@ class AsyncServer {
     uint8_t status();
 
   protected:
-    int8_t _accept(tcp_pcb* newpcb, int8_t err);
-    static int8_t _s_accept(void *arg, tcp_pcb* newpcb, int8_t err);
+    long _accept(tcp_pcb* newpcb, long err);
+    static long _s_accept(void *arg, tcp_pcb* newpcb, long err);
 #if ASYNC_TCP_SSL_ENABLED
     int _cert(const char *filename, uint8_t **buf);
-    int8_t _poll(tcp_pcb* pcb);
-    int8_t _recv(tcp_pcb *pcb, struct pbuf *pb, int8_t err);
+    long _poll(tcp_pcb* pcb);
+    long _recv(tcp_pcb *pcb, struct pbuf *pb, long err);
     static int _s_cert(void *arg, const char *filename, uint8_t **buf);
-    static int8_t _s_poll(void *arg, struct tcp_pcb *tpcb);
-    static int8_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
+    static long _s_poll(void *arg, struct tcp_pcb *tpcb);
+    static long _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, long err);
 #endif
 };
 
