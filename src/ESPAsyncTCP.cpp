@@ -969,7 +969,7 @@ long AsyncServer::_accept(tcp_pcb* pcb, long err){
   }
 
 #if ASYNC_TCP_SSL_ENABLED
-int8_t AsyncServer::_poll(tcp_pcb* pcb){
+long AsyncServer::_poll(tcp_pcb* pcb){
   if(!tcp_ssl_has_client() && _pending){
     struct pending_pcb * p = _pending;
     if(p->pcb == pcb){
@@ -995,7 +995,7 @@ int8_t AsyncServer::_poll(tcp_pcb* pcb){
   return ERR_OK;
 }
 
-int8_t AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, int8_t err){
+long AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, long err){
   if(!_pending)
     return ERR_OK;
 
@@ -1047,11 +1047,11 @@ int AsyncServer::_s_cert(void *arg, const char *filename, uint8_t **buf){
   return reinterpret_cast<AsyncServer*>(arg)->_cert(filename, buf);
 }
 
-int8_t AsyncServer::_s_poll(void *arg, struct tcp_pcb *pcb){
+long AsyncServer::_s_poll(void *arg, struct tcp_pcb *pcb){
   return reinterpret_cast<AsyncServer*>(arg)->_poll(pcb);
 }
 
-int8_t AsyncServer::_s_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *pb, int8_t err){
+long AsyncServer::_s_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *pb, long err){
   return reinterpret_cast<AsyncServer*>(arg)->_recv(pcb, pb, err);
 }
 #endif
