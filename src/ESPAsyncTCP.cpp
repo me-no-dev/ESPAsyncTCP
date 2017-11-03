@@ -27,6 +27,7 @@ extern "C"{
   #include "lwip/tcp.h"
   #include "lwip/inet.h"
   #include "lwip/dns.h"
+  #include "lwip/init.h"
 }
 #include <tcp_axtls.h>
 
@@ -110,11 +111,12 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
     return false;
   ip_addr_t addr;
   addr.addr = ip;
+#if LWIP_VERSION_MAJOR == 1
   netif* interface = ip_route(&addr);
   if (!interface){ //no route to host
     return false;
   }
-
+#endif
   tcp_pcb* pcb = tcp_new();
   if (!pcb){ //could not allocate pcb
     return false;
@@ -448,7 +450,11 @@ long AsyncClient::_poll(tcp_pcb* pcb){
   return ERR_OK;
 }
 
-void AsyncClient::_dns_found(ip_addr_t *ipaddr){
+#if LWIP_VERSION_MAJOR == 1
+void AsyncClient::_dns_found(struct ip_addr *ipaddr){
+#else
+void AsyncClient::_dns_found(const ip_addr *ipaddr){
+#endif
   if(ipaddr){
 #if ASYNC_TCP_SSL_ENABLED
     connect(IPAddress(ipaddr->addr), _connect_port, _pcb_secure);
@@ -464,8 +470,11 @@ void AsyncClient::_dns_found(ip_addr_t *ipaddr){
 }
 
 // lWIP Callbacks
-
+#if LWIP_VERSION_MAJOR == 1
 void AsyncClient::_s_dns_found(const char *name, ip_addr_t *ipaddr, void *arg){
+#else
+void AsyncClient::_s_dns_found(const char *name, const ip_addr *ipaddr, void *arg){
+#endif
   reinterpret_cast<AsyncClient*>(arg)->_dns_found(ipaddr);
 }
 

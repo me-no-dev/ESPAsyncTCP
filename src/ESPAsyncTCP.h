@@ -91,13 +91,21 @@ class AsyncClient {
 #endif
     long _poll(tcp_pcb* pcb);
     long _sent(tcp_pcb* pcb, uint16_t len);
+#if LWIP_VERSION_MAJOR == 1
     void _dns_found(struct ip_addr *ipaddr);
+#else
+    void _dns_found(const ip_addr *ipaddr);
+#endif
     static long _s_poll(void *arg, struct tcp_pcb *tpcb);
     static long _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, long err);
     static void _s_error(void *arg, long err);
     static long _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
     static long _s_connected(void* arg, void* tpcb, long err);
+#if LWIP_VERSION_MAJOR == 1
     static void _s_dns_found(const char *name, struct ip_addr *ipaddr, void *arg);
+#else
+    static void _s_dns_found(const char *name, const ip_addr *ipaddr, void *arg);
+#endif
 #if ASYNC_TCP_SSL_ENABLED
     static void _s_data(void *arg, struct tcp_pcb *tcp, uint8_t * data, size_t len);
     static void _s_handshake(void *arg, struct tcp_pcb *tcp, SSL *ssl);
