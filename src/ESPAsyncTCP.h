@@ -25,6 +25,7 @@
 #include <async_config.h>
 #include "IPAddress.h"
 #include <functional>
+#include "lwip/init.h"
 
 class AsyncClient;
 
