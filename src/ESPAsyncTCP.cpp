@@ -192,7 +192,9 @@ bool AsyncClient::operator==(const AsyncClient &other) {
 
 int8_t AsyncClient::abort(){
   if(_pcb) {
-    tcp_abort(_pcb);
+	if (_pcb->state != LISTEN)  {  
+		tcp_abort(_pcb);
+	}
     _pcb = NULL;
   }
   return ERR_ABRT;
@@ -864,10 +866,12 @@ void AsyncServer::beginSecure(const char *cert, const char *key, const char *pas
 void AsyncServer::end(){
   if(_pcb){
     //cleanup all connections?
-    tcp_abort(_pcb);
+	if (_pcb->state != LISTEN) {
+		tcp_abort(_pcb);
+	}
     tcp_arg(_pcb, NULL);
     tcp_accept(_pcb, NULL);
-    if(tcp_close(_pcb) != ERR_OK){
+    if(tcp_close(_pcb) != ERR_OK && _pcb->state !=LISTEN){
       tcp_abort(_pcb);
     }
     _pcb = NULL;
@@ -923,7 +927,7 @@ long AsyncServer::_accept(tcp_pcb* pcb, long err){
         struct pending_pcb * new_item = (struct pending_pcb*)malloc(sizeof(struct pending_pcb));
         if(!new_item){
           ASYNC_TCP_DEBUG("### malloc new pending failed!\n");
-          if(tcp_close(pcb) != ERR_OK){
+          if(tcp_close(pcb) != ERR_OK && pcp->state!=LISTEN){
             tcp_abort(pcb);
           }
           return ERR_OK;
@@ -967,7 +971,7 @@ long AsyncServer::_accept(tcp_pcb* pcb, long err){
     }
 #endif
   }
-  if(tcp_close(pcb) != ERR_OK){
+  if(tcp_close(pcb) != ERR_OK && pcb->state!=LISTEN){
     tcp_abort(pcb);
   }
   return ERR_OK;
@@ -1027,7 +1031,9 @@ long AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, long err){
     }
     free(p);
     tcp_close(pcb);
-    tcp_abort(pcb);
+	if (_pcb->state != LISTEN)  {
+		tcp_abort(pcb);
+	}
   } else {
     ASYNC_TCP_DEBUG("### wait _recv: %u %d\n", pb->tot_len, _clients_waiting);
     p = _pending;
