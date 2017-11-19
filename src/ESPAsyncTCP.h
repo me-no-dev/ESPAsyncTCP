@@ -25,7 +25,11 @@
 #include <async_config.h>
 #include "IPAddress.h"
 #include <functional>
-#include "lwip/init.h"
+
+extern "C" {
+    #include "lwip/init.h"
+    #include "lwip/err.h"
+};
 
 class AsyncClient;
 
@@ -85,23 +89,23 @@ class AsyncClient {
     uint16_t _connect_port;
 
     int8_t _close();
-    long _connected(void* pcb, long err);
-    void _error(long err);
+    err_t _connected(void* pcb, err_t err);
+    void _error(err_t err);
 #if ASYNC_TCP_SSL_ENABLED
     void _ssl_error(int8_t err);
 #endif
-    long _poll(tcp_pcb* pcb);
-    long _sent(tcp_pcb* pcb, uint16_t len);
+    err_t _poll(tcp_pcb* pcb);
+    err_t _sent(tcp_pcb* pcb, uint16_t len);
 #if LWIP_VERSION_MAJOR == 1
     void _dns_found(struct ip_addr *ipaddr);
 #else
     void _dns_found(const ip_addr *ipaddr);
 #endif
-    static long _s_poll(void *arg, struct tcp_pcb *tpcb);
-    static long _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, long err);
-    static void _s_error(void *arg, long err);
-    static long _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
-    static long _s_connected(void* arg, void* tpcb, long err);
+    static err_t _s_poll(void *arg, struct tcp_pcb *tpcb);
+    static err_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, err_t err);
+    static void _s_error(void *arg, err_t err);
+    static err_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
+    static err_t _s_connected(void* arg, void* tpcb, err_t err);
 #if LWIP_VERSION_MAJOR == 1
     static void _s_dns_found(const char *name, struct ip_addr *ipaddr, void *arg);
 #else
@@ -193,7 +197,7 @@ class AsyncClient {
     const char * errorToString(int8_t error);
     const char * stateToString();
 
-    long _recv(tcp_pcb* pcb, pbuf* pb, long err);
+    err_t _recv(tcp_pcb* pcb, pbuf* pb, err_t err);
 };
 
 #if ASYNC_TCP_SSL_ENABLED
@@ -233,15 +237,15 @@ class AsyncServer {
     uint8_t status();
 
   protected:
-    long _accept(tcp_pcb* newpcb, long err);
-    static long _s_accept(void *arg, tcp_pcb* newpcb, long err);
+    err_t _accept(tcp_pcb* newpcb, err_t err);
+    static err_t _s_accept(void *arg, tcp_pcb* newpcb, err_t err);
 #if ASYNC_TCP_SSL_ENABLED
     int _cert(const char *filename, uint8_t **buf);
-    long _poll(tcp_pcb* pcb);
-    long _recv(tcp_pcb *pcb, struct pbuf *pb, long err);
+    err_t _poll(tcp_pcb* pcb);
+    err_t _recv(tcp_pcb *pcb, struct pbuf *pb, err_t err);
     static int _s_cert(void *arg, const char *filename, uint8_t **buf);
-    static long _s_poll(void *arg, struct tcp_pcb *tpcb);
-    static long _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, long err);
+    static err_t _s_poll(void *arg, struct tcp_pcb *tpcb);
+    static err_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, err_t err);
 #endif
 };
 
