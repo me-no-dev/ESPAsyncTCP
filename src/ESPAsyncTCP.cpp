@@ -864,7 +864,6 @@ void AsyncServer::beginSecure(const char *cert, const char *key, const char *pas
 void AsyncServer::end(){
   if(_pcb){
     //cleanup all connections?
-    tcp_abort(_pcb);
     tcp_arg(_pcb, NULL);
     tcp_accept(_pcb, NULL);
     if(tcp_close(_pcb) != ERR_OK){
