@@ -50,6 +50,8 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
   , _error_cb_arg(0)
   , _recv_cb(0)
   , _recv_cb_arg(0)
+  , _pb_cb(0)
+  , _pb_cb_arg(0)
   , _timeout_cb(0)
   , _timeout_cb_arg(0)
   , _pcb_busy(false)
@@ -402,16 +404,20 @@ err_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, err_t err) {
     //we should not ack before we assimilate the data
     _ack_pcb = true;
     pbuf *b = pb;
-    ASYNC_TCP_DEBUG("_recv: %d\n", b->len);
-    if(_recv_cb)
-      _recv_cb(_recv_cb_arg, this, b->payload, b->len);
-    if(!_ack_pcb)
-      _rx_ack_len += b->len;
-    else
-      tcp_recved(pcb, b->len);
     pb = b->next;
     b->next = NULL;
-    pbuf_free(b);
+    ASYNC_TCP_DEBUG("_recv: %d\n", b->len);
+    if(_pb_cb){
+      _pb_cb(_pb_cb_arg, this, b);
+    } else {
+      if(_recv_cb)
+        _recv_cb(_recv_cb_arg, this, b->payload, b->len);
+      if(!_ack_pcb)
+        _rx_ack_len += b->len;
+      else
+        tcp_recved(pcb, b->len);
+      pbuf_free(b);
+    }
   }
   return ERR_OK;
 }
@@ -690,6 +696,11 @@ void AsyncClient::onData(AcDataHandler cb, void* arg){
   _recv_cb_arg = arg;
 }
 
+void AsyncClient::onPacket(AcPacketHandler cb, void* arg){
+  _pb_cb = cb;
+  _pb_cb_arg = arg;
+}
+
 void AsyncClient::onTimeout(AcTimeoutHandler cb, void* arg){
   _timeout_cb = cb;
   _timeout_cb_arg = arg;
@@ -722,6 +733,14 @@ size_t AsyncClient::space(){
   }
 #endif
   return 0;
+}
+
+void AsyncClient::ackPacket(struct pbuf * pb){
+  if(!pb){
+    return;
+  }
+  tcp_recved(_pcb, pb->len);
+  pbuf_free(pb);
 }
 
 const char * AsyncClient::errorToString(int8_t error){
