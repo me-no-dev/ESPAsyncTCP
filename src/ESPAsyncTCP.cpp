@@ -395,7 +395,7 @@ err_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, err_t err) {
         ASYNC_TCP_DEBUG("_recv err: %d\n", read_bytes);
         _close();
       }
-      return read_bytes;
+      //return read_bytes;
     }
     return ERR_OK;
   }
