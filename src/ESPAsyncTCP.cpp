@@ -366,8 +366,10 @@ void AsyncClient::_ssl_error(int8_t err){
 #endif
 
 err_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
+#if ASYNC_TCP_SSL_ENABLED
   if (_pcb_secure && !_handshake_done)
     return ERR_OK;
+#endif
   _rx_last_packet = millis();
   _tx_unacked_len -= len;
   _tx_acked_len += len;
