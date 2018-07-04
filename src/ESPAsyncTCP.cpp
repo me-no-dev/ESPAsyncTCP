@@ -27,6 +27,7 @@ extern "C"{
   #include "lwip/tcp.h"
   #include "lwip/inet.h"
   #include "lwip/dns.h"
+  #include "lwip/init.h"
 }
 #include <tcp_axtls.h>
 
@@ -49,6 +50,8 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
   , _error_cb_arg(0)
   , _recv_cb(0)
   , _recv_cb_arg(0)
+  , _pb_cb(0)
+  , _pb_cb_arg(0)
   , _timeout_cb(0)
   , _timeout_cb_arg(0)
   , _pcb_busy(false)
@@ -110,11 +113,12 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
     return false;
   ip_addr_t addr;
   addr.addr = ip;
+#if LWIP_VERSION_MAJOR == 1
   netif* interface = ip_route(&addr);
   if (!interface){ //no route to host
     return false;
   }
-
+#endif
   tcp_pcb* pcb = tcp_new();
   if (!pcb){ //could not allocate pcb
     return false;
@@ -281,7 +285,7 @@ size_t AsyncClient::ack(size_t len){
 
 // Private Callbacks
 
-int8_t AsyncClient::_connected(void* pcb, int8_t err){
+err_t AsyncClient::_connected(void* pcb, err_t err){
   _pcb = reinterpret_cast<tcp_pcb*>(pcb);
   if(_pcb){
     _pcb_busy = false;
@@ -334,7 +338,7 @@ int8_t AsyncClient::_close(){
   return err;
 }
 
-void AsyncClient::_error(int8_t err) {
+void AsyncClient::_error(err_t err) {
   if(_pcb){
 #if ASYNC_TCP_SSL_ENABLED
     if(_pcb_secure){
@@ -361,7 +365,7 @@ void AsyncClient::_ssl_error(int8_t err){
 }
 #endif
 
-int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
+err_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
   _rx_last_packet = millis();
   ASYNC_TCP_DEBUG("_sent: %u\n", len);
   _tx_unacked_len -= len;
@@ -375,7 +379,7 @@ int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
   return ERR_OK;
 }
 
-int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
+err_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, err_t err) {
   if(pb == NULL){
     ASYNC_TCP_DEBUG("_recv: pb == NULL! Closing... %d\n", err);
     return _close();
@@ -400,21 +404,25 @@ int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
     //we should not ack before we assimilate the data
     _ack_pcb = true;
     pbuf *b = pb;
-    ASYNC_TCP_DEBUG("_recv: %d\n", b->len);
-    if(_recv_cb)
-      _recv_cb(_recv_cb_arg, this, b->payload, b->len);
-    if(!_ack_pcb)
-      _rx_ack_len += b->len;
-    else
-      tcp_recved(pcb, b->len);
     pb = b->next;
     b->next = NULL;
-    pbuf_free(b);
+    ASYNC_TCP_DEBUG("_recv: %d\n", b->len);
+    if(_pb_cb){
+      _pb_cb(_pb_cb_arg, this, b);
+    } else {
+      if(_recv_cb)
+        _recv_cb(_recv_cb_arg, this, b->payload, b->len);
+      if(!_ack_pcb)
+        _rx_ack_len += b->len;
+      else
+        tcp_recved(pcb, b->len);
+      pbuf_free(b);
+    }
   }
   return ERR_OK;
 }
 
-int8_t AsyncClient::_poll(tcp_pcb* pcb){
+err_t AsyncClient::_poll(tcp_pcb* pcb){
   // Close requested
   if(_close_pcb){
     _close_pcb = false;
@@ -448,7 +456,11 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
   return ERR_OK;
 }
 
-void AsyncClient::_dns_found(ip_addr_t *ipaddr){
+#if LWIP_VERSION_MAJOR == 1
+void AsyncClient::_dns_found(struct ip_addr *ipaddr){
+#else
+void AsyncClient::_dns_found(const ip_addr *ipaddr){
+#endif
   if(ipaddr){
 #if ASYNC_TCP_SSL_ENABLED
     connect(IPAddress(ipaddr->addr), _connect_port, _pcb_secure);
@@ -464,28 +476,31 @@ void AsyncClient::_dns_found(ip_addr_t *ipaddr){
 }
 
 // lWIP Callbacks
-
+#if LWIP_VERSION_MAJOR == 1
 void AsyncClient::_s_dns_found(const char *name, ip_addr_t *ipaddr, void *arg){
+#else
+void AsyncClient::_s_dns_found(const char *name, const ip_addr *ipaddr, void *arg){
+#endif
   reinterpret_cast<AsyncClient*>(arg)->_dns_found(ipaddr);
 }
 
-int8_t AsyncClient::_s_poll(void *arg, struct tcp_pcb *tpcb) {
+err_t AsyncClient::_s_poll(void *arg, struct tcp_pcb *tpcb) {
   return reinterpret_cast<AsyncClient*>(arg)->_poll(tpcb);
 }
 
-int8_t AsyncClient::_s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err) {
+err_t AsyncClient::_s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, err_t err) {
   return reinterpret_cast<AsyncClient*>(arg)->_recv(tpcb, pb, err);
 }
 
-void AsyncClient::_s_error(void *arg, int8_t err) {
+void AsyncClient::_s_error(void *arg, err_t err) {
   reinterpret_cast<AsyncClient*>(arg)->_error(err);
 }
 
-int8_t AsyncClient::_s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len) {
+err_t AsyncClient::_s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len) {
   return reinterpret_cast<AsyncClient*>(arg)->_sent(tpcb, len);
 }
 
-int8_t AsyncClient::_s_connected(void* arg, void* tpcb, int8_t err){
+err_t AsyncClient::_s_connected(void* arg, void* tpcb, err_t err){
     return reinterpret_cast<AsyncClient*>(arg)->_connected(tpcb, err);
 }
 
@@ -681,6 +696,11 @@ void AsyncClient::onData(AcDataHandler cb, void* arg){
   _recv_cb_arg = arg;
 }
 
+void AsyncClient::onPacket(AcPacketHandler cb, void* arg){
+  _pb_cb = cb;
+  _pb_cb_arg = arg;
+}
+
 void AsyncClient::onTimeout(AcTimeoutHandler cb, void* arg){
   _timeout_cb = cb;
   _timeout_cb_arg = arg;
@@ -713,6 +733,14 @@ size_t AsyncClient::space(){
   }
 #endif
   return 0;
+}
+
+void AsyncClient::ackPacket(struct pbuf * pb){
+  if(!pb){
+    return;
+  }
+  tcp_recved(_pcb, pb->len);
+  pbuf_free(pb);
 }
 
 const char * AsyncClient::errorToString(int8_t error){
@@ -855,7 +883,6 @@ void AsyncServer::beginSecure(const char *cert, const char *key, const char *pas
 void AsyncServer::end(){
   if(_pcb){
     //cleanup all connections?
-    tcp_abort(_pcb);
     tcp_arg(_pcb, NULL);
     tcp_accept(_pcb, NULL);
     if(tcp_close(_pcb) != ERR_OK){
@@ -896,7 +923,7 @@ uint8_t AsyncServer::status(){
   return _pcb->state;
 }
 
-int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
+err_t AsyncServer::_accept(tcp_pcb* pcb, err_t err){
   if(_connect_cb){
 #if ASYNC_TCP_SSL_ENABLED
     if (_noDelay || _ssl_ctx)
@@ -964,12 +991,12 @@ int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
   return ERR_OK;
 }
 
-  int8_t AsyncServer::_s_accept(void *arg, tcp_pcb* pcb, int8_t err){
+  err_t AsyncServer::_s_accept(void *arg, tcp_pcb* pcb, err_t err){
     return reinterpret_cast<AsyncServer*>(arg)->_accept(pcb, err);
   }
 
 #if ASYNC_TCP_SSL_ENABLED
-int8_t AsyncServer::_poll(tcp_pcb* pcb){
+err_t AsyncServer::_poll(tcp_pcb* pcb){
   if(!tcp_ssl_has_client() && _pending){
     struct pending_pcb * p = _pending;
     if(p->pcb == pcb){
@@ -995,7 +1022,7 @@ int8_t AsyncServer::_poll(tcp_pcb* pcb){
   return ERR_OK;
 }
 
-int8_t AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, int8_t err){
+err_t AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, err_t err){
   if(!_pending)
     return ERR_OK;
 
@@ -1047,11 +1074,11 @@ int AsyncServer::_s_cert(void *arg, const char *filename, uint8_t **buf){
   return reinterpret_cast<AsyncServer*>(arg)->_cert(filename, buf);
 }
 
-int8_t AsyncServer::_s_poll(void *arg, struct tcp_pcb *pcb){
+err_t AsyncServer::_s_poll(void *arg, struct tcp_pcb *pcb){
   return reinterpret_cast<AsyncServer*>(arg)->_poll(pcb);
 }
 
-int8_t AsyncServer::_s_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *pb, int8_t err){
+err_t AsyncServer::_s_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *pb, err_t err){
   return reinterpret_cast<AsyncServer*>(arg)->_recv(pcb, pb, err);
 }
 #endif
