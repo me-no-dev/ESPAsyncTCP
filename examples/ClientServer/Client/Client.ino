@@ -25,7 +25,7 @@ static void replyToServer(void* arg) {
 /* event callbacks */
 static void handleData(void* arg, AsyncClient* client, void *data, size_t len) {
 	Serial.printf("\n data received from %s \n", client->remoteIP().toString().c_str());
-	Serial.write((char*)data, len);
+	Serial.write((uint8_t*)data, len);
 
 	os_timer_arm(&intervalTimer, 2000, true); // schedule for reply to server at next 2s
 }

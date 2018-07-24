@@ -16,7 +16,7 @@ static void handleError(void* arg, AsyncClient* client, int8_t error) {
 
 static void handleData(void* arg, AsyncClient* client, void *data, size_t len) {
 	Serial.printf("\n data received from client %s \n", client->remoteIP().toString().c_str());
-	Serial.write((char*)data, len);
+	Serial.write((uint8_t*)data, len);
 
 	// reply to client
 	if (client->space() > 32 && client->canSend()) {
