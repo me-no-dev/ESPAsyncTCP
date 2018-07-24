@@ -201,7 +201,8 @@ int8_t AsyncClient::abort(){
 }
 
 void AsyncClient::close(bool now){
-  tcp_recved(_pcb, _rx_ack_len);
+  if(_pcb)
+    tcp_recved(_pcb, _rx_ack_len);
   if(now)
     _close();
   else
