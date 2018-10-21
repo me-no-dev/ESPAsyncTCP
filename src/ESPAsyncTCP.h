@@ -146,24 +146,43 @@ class AsyncClient {
     bool connect(IPAddress ip, uint16_t port);
     bool connect(const char* host, uint16_t port);
 #endif
+    // close terminates the connection. If now==true any pending send buffer is discarded, else the connection is closed
+    // after the buffer is sent.
     void close(bool now = false);
+    // stop is the same as close(false)
     void stop();
+    // abort the TCP connection (the remote end sees a connection reset???)
     int8_t abort();
+    // free returns true if the connection is "done", i.e. all resources and state have been deallocated
     bool free();
 
-    bool canSend();//ack is not pending
+    // canSend returns true if there is no ack pending and the current buffer has space
+    bool canSend();
+    // space returns the number of bytes available in the current transmit buffer
     size_t space();
-    size_t add(const char* data, size_t size, uint8_t apiflags=0);//add for sending
-    bool send();//send all data added with the method above
-    size_t ack(size_t len); //ack data that you have not acked using the method below
-    void ackLater(){ _ack_pcb = false; } //will not ack the current packet. Call from onData
+    // add appends data to the current transmit buffer and returns the number of bytes that fit.
+    // The apiflags may be a combination of ASYNC_WRITE_FLAG_*
+    size_t add(const char* data, size_t size, uint8_t apiflags=0);
+    // send transmits the current buffer and returns true if it could be sent due to flow-control,
+    // if it returns false then send should be called again once canSend returns true
+    bool send();
+    // write a null-terminated string to the current TX buffer and call send, return the number of chars written and sent.
+    // Do not call write unless canSend returns true because it will return 0 yet have written bytes to the TX buffer.
+    size_t write(const char* data);
+    // write a counted byte buffer, the apiflags may be a combination of ASYNC_WRITE_FLAG_*
+    size_t write(const char* data, size_t size, uint8_t apiflags=0);
+  
+    // ackLater should be called in an onData handler if all the received data should not be ACKed.
+    // By default all the data is ACKed. Not ACKing creates flow-control back pressure to prevent an overflow of RX data.
+    void ackLater(){ _ack_pcb = false; }
+    // ack should be called to ACK len bytes of data for which the ACK was postponed using ackLater
+    size_t ack(size_t len);
+    // ackPacket should be called to ACK an entire packet when an onPacket handler is used
+    void ackPacket(struct pbuf * pb);
 
 #if ASYNC_TCP_SSL_ENABLED
     SSL *getSSL();
 #endif
-
-    size_t write(const char* data);
-    size_t write(const char* data, size_t size, uint8_t apiflags=0); //only when canSend() == true
 
     uint8_t state();
     bool connecting();
@@ -197,8 +216,6 @@ class AsyncClient {
     void onPacket(AcPacketHandler cb, void* arg = 0);       //data received
     void onTimeout(AcTimeoutHandler cb, void* arg = 0);     //ack timeout
     void onPoll(AcConnectHandler cb, void* arg = 0);        //every 125ms when connected
-
-    void ackPacket(struct pbuf * pb);
 
     const char * errorToString(int8_t error);
     const char * stateToString();
