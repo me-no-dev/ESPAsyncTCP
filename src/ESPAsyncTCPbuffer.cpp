@@ -330,7 +330,7 @@ void AsyncTCPbuffer::_sendBuffer() {
         return;
     }
 
-    while((_client->space() > 0) && (_TXbufferRead->available() > 0) && _client->canSend()) {
+    while(_client != NULL && (_client->space() > 0) && (_TXbufferRead->available() > 0) && _client->canSend()) {
 
         available = _TXbufferRead->available();
 
@@ -347,14 +347,16 @@ void AsyncTCPbuffer::_sendBuffer() {
         // read data from buffer
         _TXbufferRead->peek(out, available);
 
-        // send data
-        size_t send = _client->write((const char*) out, available);
-        if(send != available) {
-            DEBUG_ASYNC_TCP("[A-TCP] write failed send: %d available: %d \n", send, available);
-        }
+        if (_client) {
+            // send data
+            size_t send = _client->write((const char*) out, available);
+            if(send != available) {
+                DEBUG_ASYNC_TCP("[A-TCP] write failed send: %d available: %d \n", send, available);
+            }
 
-        // remove really send data from buffer
-        _TXbufferRead->remove(send);
+            // remove really send data from buffer
+            _TXbufferRead->remove(send);
+        }
 
         // if buffer is empty and there is a other buffer in chain delete the empty one
         if(_TXbufferRead->available() == 0 && _TXbufferRead->next != NULL) {
