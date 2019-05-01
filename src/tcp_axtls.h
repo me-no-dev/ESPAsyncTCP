@@ -40,6 +40,7 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include "include/ssl.h"
 
 #define ERR_TCP_SSL_INVALID_SSL           -101
