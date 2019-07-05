@@ -18,29 +18,62 @@
   License along with this library; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#include "SyncClient.h"
 #include "Arduino.h"
+#include "SyncClient.h"
 #include "ESPAsyncTCP.h"
 #include "cbuf.h"
+#include <interrupts.h>
 
+#define DEBUG_ESP_SYNC_CLIENT
+#if defined(DEBUG_ESP_SYNC_CLIENT) && !defined(SYNC_CLIENT_DEBUG)
+#define SYNC_CLIENT_DEBUG( format, ...) DEBUG_GENERIC_P("[SYNC_CLIENT]", format, ##__VA_ARGS__)
+#endif
+#ifndef SYNC_CLIENT_DEBUG
+#define SYNC_CLIENT_DEBUG(...) do { (void)0;} while(false)
+#endif
+
+/*
+  Without LWIP_NETIF_TX_SINGLE_PBUF, all tcp_writes default to "no copy".
+  Referenced data must be preserved and free-ed from the specified tcp_sent()
+  callback. Alternative, tcp_writes need to use the TCP_WRITE_FLAG_COPY
+  attribute.
+*/
+static_assert(LWIP_NETIF_TX_SINGLE_PBUF, "Required, tcp_write() must always copy.");
 
 SyncClient::SyncClient(size_t txBufLen)
   : _client(NULL)
   , _tx_buffer(NULL)
   , _tx_buffer_size(txBufLen)
   , _rx_buffer(NULL)
-{}
+  , _ref(NULL)
+{
+  ref();
+}
 
 SyncClient::SyncClient(AsyncClient *client, size_t txBufLen)
   : _client(client)
-  , _tx_buffer(new cbuf(txBufLen))
+  , _tx_buffer(new (std::nothrow) cbuf(txBufLen))
   , _tx_buffer_size(txBufLen)
   , _rx_buffer(NULL)
+  , _ref(NULL)
 {
-  _attachCallbacks();
+  if(ref() > 0 && _client != NULL)
+    _attachCallbacks();
 }
 
 SyncClient::~SyncClient(){
+  if (0 == unref())
+    _release();
+}
+
+void SyncClient::_release(){
+  if(_client != NULL){
+    _client->onData(NULL, NULL);
+    _client->onAck(NULL, NULL);
+    _client->onPoll(NULL, NULL);
+    _client->abort();
+    _client = NULL;
+  }
   if(_tx_buffer != NULL){
     cbuf *b = _tx_buffer;
     _tx_buffer = NULL;
@@ -53,14 +86,43 @@ SyncClient::~SyncClient(){
   }
 }
 
+int SyncClient::ref(){
+  if(_ref == NULL){
+    _ref = new (std::nothrow) int;
+    if(_ref != NULL)
+      *_ref = 0;
+    else
+      return -1;
+  }
+  return (++*_ref);
+}
+
+int SyncClient::unref(){
+  int count = -1;
+  if (_ref != NULL) {
+    count = --*_ref;
+    if (0 == count) {
+      delete _ref;
+      _ref = NULL;
+    }
+  }
+  return count;
+}
+
 #if ASYNC_TCP_SSL_ENABLED
-int SyncClient::connect(IPAddress ip, uint16_t port, bool secure){
+int SyncClient::_connect(const IPAddress& ip, uint16_t port, bool secure){
 #else
-int SyncClient::connect(IPAddress ip, uint16_t port){
+int SyncClient::_connect(const IPAddress& ip, uint16_t port){
 #endif
-  if(_client != NULL && connected())
+  if(connected())
     return 0;
-  _client = new AsyncClient();
+  if(_client != NULL)
+    delete _client;
+
+  _client = new (std::nothrow) AsyncClient();
+  if (_client == NULL)
+    return 0;
+
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
   _attachCallbacks_Disconnect();
 #if ASYNC_TCP_SSL_ENABLED
@@ -80,10 +142,15 @@ int SyncClient::connect(const char *host, uint16_t port, bool secure){
 #else
 int SyncClient::connect(const char *host, uint16_t port){
 #endif
-  if(_client != NULL && connected()){
+  if(connected())
     return 0;
-  }
-  _client = new AsyncClient();
+  if(_client != NULL)
+    delete _client;
+
+  _client = new (std::nothrow) AsyncClient();
+  if (_client == NULL)
+    return 0;
+
   _client->onConnect([](void *obj, AsyncClient *c){ ((SyncClient*)(obj))->_onConnect(c); }, this);
   _attachCallbacks_Disconnect();
 #if ASYNC_TCP_SSL_ENABLED
@@ -97,7 +164,43 @@ int SyncClient::connect(const char *host, uint16_t port){
   }
   return 0;
 }
+//#define SYNCCLIENT_NEW_OPERATOR_EQUAL
+#ifdef SYNCCLIENT_NEW_OPERATOR_EQUAL
+/*
+  New behavior for operator=
 
+  Allow for the object to be placed on a queue and transfered to a new container
+  with buffers still in tact. Avoiding receive data drops. Transfers rx and tx
+  buffers. Supports return by value.
+
+  Note, this is optional, the old behavior is the default.
+
+*/
+SyncClient & SyncClient::operator=(const SyncClient &other){
+  int *rhsref = other._ref;
+  ++*rhsref; // Just in case the left and right side are the same object with different containers
+  if (0 == unref())
+    _release();
+  _ref = other._ref;
+  ref();
+  --*rhsref;
+  // Why do I not test _tx_buffer for != NULL and free?
+  // I allow for the lh target container, to be a copy of an active
+  // connection. Thus we are just reusing the container.
+  // The above unref() handles releaseing the previous client of the container.
+  _tx_buffer_size = other._tx_buffer_size;
+  _tx_buffer = other._tx_buffer;
+  _client = other._client;
+  if (_client != NULL && _tx_buffer == NULL)
+    _tx_buffer = new (std::nothrow) cbuf(_tx_buffer_size);
+
+  _rx_buffer = other._rx_buffer;
+  if(_client)
+    _attachCallbacks();
+  return *this;
+}
+#else   // ! SYNCCLIENT_NEW_OPERATOR_EQUAL
+// This is the origianl logic with null checks
 SyncClient & SyncClient::operator=(const SyncClient &other){
   if(_client != NULL){
     _client->abort();
@@ -115,11 +218,16 @@ SyncClient & SyncClient::operator=(const SyncClient &other){
     _rx_buffer = b->next;
     delete b;
   }
-  _tx_buffer = new cbuf(other._tx_buffer_size);
+  if(other._client != NULL)
+    _tx_buffer = new (std::nothrow) cbuf(other._tx_buffer_size);
+
   _client = other._client;
-  _attachCallbacks();
+  if(_client)
+    _attachCallbacks();
+
   return *this;
 }
+#endif
 
 void SyncClient::setTimeout(uint32_t seconds){
   if(_client != NULL)
@@ -136,19 +244,26 @@ uint8_t SyncClient::connected(){
   return (_client != NULL && _client->connected());
 }
 
-void SyncClient::stop(){
+bool SyncClient::stop(unsigned int maxWaitMs){
+  (void)maxWaitMs;
   if(_client != NULL)
     _client->close(true);
+  return true;
 }
 
 size_t SyncClient::_sendBuffer(){
+  if(_client == NULL || _tx_buffer == NULL)
+    return 0;
   size_t available = _tx_buffer->available();
   if(!connected() || !_client->canSend() || available == 0)
     return 0;
   size_t sendable = _client->space();
   if(sendable < available)
     available= sendable;
-  char *out = new char[available];
+  char *out = new (std::nothrow) char[available];
+  if(out == NULL)
+    return 0;
+
   _tx_buffer->read(out, available);
   size_t sent = _client->write(out, available);
   delete[] out;
@@ -157,7 +272,7 @@ size_t SyncClient::_sendBuffer(){
 
 void SyncClient::_onData(void *data, size_t len){
   _client->ackLater();
-  cbuf *b = new cbuf(len+1);
+  cbuf *b = new (std::nothrow) cbuf(len+1);
   if(b != NULL){
     b->write((const char *)data, len);
     if(_rx_buffer == NULL)
@@ -168,6 +283,13 @@ void SyncClient::_onData(void *data, size_t len){
         p = p->next;
       p->next = b;
     }
+  } else {
+    // We ran out of memory. This fail causes lost receive data.
+    // The connection should be closed in a manner that conveys something
+    // bad/abnormal has happened to the connection. Hence, we abort the
+    // connection to avoid possible data corruption.
+    // Note, callbacks maybe called.
+    _client->abort();
   }
 }
 
@@ -189,7 +311,7 @@ void SyncClient::_onConnect(AsyncClient *c){
     _tx_buffer = NULL;
     delete b;
   }
-  _tx_buffer = new cbuf(_tx_buffer_size);
+  _tx_buffer = new (std::nothrow) cbuf(_tx_buffer_size);
   _attachCallbacks_AfterConnected();
 }
 
@@ -199,9 +321,9 @@ void SyncClient::_attachCallbacks(){
 }
 
 void SyncClient::_attachCallbacks_AfterConnected(){
-  _client->onAck([](void *obj, AsyncClient* c, size_t len, uint32_t time){ ((SyncClient*)(obj))->_sendBuffer(); }, this);
-  _client->onData([](void *obj, AsyncClient* c, void *data, size_t len){ ((SyncClient*)(obj))->_onData(data, len); }, this);
-  _client->onTimeout([](void *obj, AsyncClient* c, uint32_t time){ c->close(); }, this);
+  _client->onAck([](void *obj, AsyncClient* c, size_t len, uint32_t time){ (void)c; (void)len; (void)time; ((SyncClient*)(obj))->_sendBuffer(); }, this);
+  _client->onData([](void *obj, AsyncClient* c, void *data, size_t len){ (void)c; ((SyncClient*)(obj))->_onData(data, len); }, this);
+  _client->onTimeout([](void *obj, AsyncClient* c, uint32_t time){ (void)obj; (void)time; c->close(); }, this);
 }
 
 void SyncClient::_attachCallbacks_Disconnect(){
@@ -221,13 +343,15 @@ size_t SyncClient::write(const uint8_t *data, size_t len){
   while(_tx_buffer->room() < toSend){
     toWrite = _tx_buffer->room();
     _tx_buffer->write((const char*)data, toWrite);
-    while(!_client->canSend() && connected())
+    while(connected() && !_client->canSend())
       delay(0);
+    if(!connected())
+      return 0;
     _sendBuffer();
     toSend -= toWrite;
   }
   _tx_buffer->write((const char*)(data+(len - toSend)), toSend);
-  if(_client->canSend() && connected())
+  if(connected() && _client->canSend())
     _sendBuffer();
   return len;
 }
@@ -275,12 +399,16 @@ int SyncClient::read(){
   return res;
 }
 
-void SyncClient::flush(){
+bool SyncClient::flush(unsigned int maxWaitMs){
+  (void)maxWaitMs;
   if(_tx_buffer == NULL || !connected())
-    return;
+    return false;
   if(_tx_buffer->available()){
-    while(!_client->canSend() && connected())
+    while(connected() && !_client->canSend())
       delay(0);
+    if(_client == NULL || _tx_buffer == NULL)
+      return false;
     _sendBuffer();
   }
+  return true;
 }
