@@ -32,7 +32,7 @@ echo -e "travis_fold:end:install_web_server"
 
 echo -e "travis_fold:start:test_web_server"
 for EXAMPLE in $HOME/ESPAsyncWebServer/examples/*/*.ino; do
-    python -m platformio ci $EXAMPLE -l $TRAVIS_BUILD_DIR -b esp12e
+    python -m platformio ci $EXAMPLE -l $TRAVIS_BUILD_DIR -l $HOME/ESPAsyncWebServer -b esp12e
 	if [ $? -ne 0 ]; then exit 1; fi
 done
 echo -e "travis_fold:end:test_web_server"
