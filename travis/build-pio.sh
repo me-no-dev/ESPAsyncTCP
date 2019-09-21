@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo -e "travis_fold:start:install_pio"
-pip install --user platformio
+pip install -U platformio
 if [ $? -ne 0 ]; then exit 1; fi
 echo -e "travis_fold:end:install_pio"
 
