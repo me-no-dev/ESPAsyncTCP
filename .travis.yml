@@ -1,5 +1,5 @@
 sudo: false
-language: bash
+language: python
 os:
   - linux
 
