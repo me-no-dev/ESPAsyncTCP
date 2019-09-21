@@ -18,7 +18,7 @@ done
 echo -e "travis_fold:end:test_pio"
 
 echo -e "travis_fold:start:install_json"
-python -m platformio lib install https://github.com/bblanchon/ArduinoJson.git
+python -m platformio lib -g install https://github.com/bblanchon/ArduinoJson.git
 if [ $? -ne 0 ]; then exit 1; fi
 echo -e "travis_fold:end:install_json"
 
