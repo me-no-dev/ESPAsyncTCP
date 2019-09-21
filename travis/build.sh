@@ -31,7 +31,10 @@ cp -rf $TRAVIS_BUILD_DIR ESPAsyncTCP
 PLATFORM_EXAMPLES=$TRAVIS_BUILD_DIR/examples
 
 cd $HOME/Arduino/libraries
-git clone https://github.com/me-no-dev/ESPAsyncTCP
+git clone https://github.com/me-no-dev/ESPAsyncWebServer
+git clone https://github.com/bblanchon/ArduinoJson
+LIB_EXAMPLES=$HOME/Arduino/libraries/ESPAsyncWebServer/examples
+
 cd $HOME/Arduino/hardware
 mkdir esp8266com
 cd esp8266com
@@ -99,9 +102,9 @@ function build_sketch()
 
 function count_sketches()
 {
-    local sketches=$(find $PLATFORM_EXAMPLES -name *.ino)
+    local path=$1
+    local sketches=$(find $path -name *.ino)
     local sketchnum=0
-    rm -rf sketches.txt
     for sketch in $sketches; do
         local sketchdir=$(dirname $sketch)
         local sketchdirname=$(basename $sketchdir)
@@ -124,8 +127,12 @@ function build_sketches()
     
     local chunk_idex=$1
     local chunks_num=$2
-    count_sketches
+    rm -rf sketches.txt
+    count_sketches $PLATFORM_EXAMPLES
     local sketchcount=$?
+    count_sketches $LIB_EXAMPLES
+    local libsketchcount=$?
+    sketchcount=$(($sketchcount + $libsketchcount))
     local sketches=$(cat sketches.txt)
 
     local chunk_size=$(( $sketchcount / $chunks_num ))
