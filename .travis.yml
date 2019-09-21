@@ -12,10 +12,15 @@ stages:
 jobs:
   include:
 
-    - name: "Build Examples"
+    - name: "Arduino Build"
       if: tag IS blank AND (type = pull_request OR (type = push AND branch = master))
       stage: build
       script: bash $TRAVIS_BUILD_DIR/travis/build.sh
+
+    - name: "PlatformIO Build"
+      if: tag IS blank AND (type = pull_request OR (type = push AND branch = master))
+      stage: build
+      script: bash $TRAVIS_BUILD_DIR/travis/build-pio.sh
 
 notifications:
   email:
