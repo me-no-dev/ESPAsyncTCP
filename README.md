@@ -1,5 +1,7 @@
-# ESPAsyncTCP [![Build Status](https://travis-ci.org/me-no-dev/ESPAsyncTCP.svg?branch=master)](https://travis-ci.org/me-no-dev/ESPAsyncTCP)
-Async TCP Library for ESP8266 Arduino
+# ESPAsyncTCP 
+[![Build Status](https://travis-ci.org/me-no-dev/ESPAsyncTCP.svg?branch=master)](https://travis-ci.org/me-no-dev/ESPAsyncTCP) ![](https://github.com/me-no-dev/ESPAsyncTCP/workflows/ESP%20Async%20TCP%20CI/badge.svg)
+
+### Async TCP Library for ESP8266 Arduino
 
 For ESP32 look [HERE](https://github.com/me-no-dev/AsyncTCP)
 
