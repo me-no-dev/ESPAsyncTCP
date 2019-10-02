@@ -38,7 +38,9 @@ if [ "$BUILD_PIO" -eq 0 ]; then
 
 	FQBN="esp8266com:esp8266:generic:eesz=4M1M,ip=lm2f"
 	build_sketches "$FQBN" "$GITHUB_WORKSPACE/examples"
-	build_sketches "$FQBN" "$ARDUINO_USR_PATH/libraries/ESPAsyncWebServer/examples"
+	if [ -x "$OS_IS_WINDOWS" ]; then
+		build_sketches "$FQBN" "$ARDUINO_USR_PATH/libraries/ESPAsyncWebServer/examples"
+	fi
 else
 	# PlatformIO Test
 	source ./.github/scripts/install-platformio.sh
@@ -55,5 +57,7 @@ else
 
 	BOARD="esp12e"
 	build_pio_sketches "$BOARD" "$GITHUB_WORKSPACE/examples"
-	build_pio_sketches "$BOARD" "$HOME/ESPAsyncWebServer/examples"
+	if [[ "$OSTYPE" != "cygwin" ]] || [[ "$OSTYPE" != "msys" ]] || [[ "$OSTYPE" != "win32" ]]; then
+		build_pio_sketches "$BOARD" "$HOME/ESPAsyncWebServer/examples"
+	fi
 fi
