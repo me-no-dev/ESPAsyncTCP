@@ -45,6 +45,7 @@ else
 
 	echo "Installing ESPAsyncWebServer ..."
 	python -m platformio lib -g install https://github.com/me-no-dev/ESPAsyncWebServer.git > /dev/null 2>&1
+	git clone https://github.com/me-no-dev/ESPAsyncWebServer "$HOME/ESPAsyncWebServer" > /dev/null 2>&1
 
 	echo "Installing ArduinoJson ..."
 	python -m platformio lib -g install https://github.com/bblanchon/ArduinoJson.git > /dev/null 2>&1
@@ -52,5 +53,7 @@ else
 	echo "Installing ESPAsyncTCP ..."
 	python -m platformio lib --storage-dir "$GITHUB_WORKSPACE" install
 
-	build_pio_sketches esp12e "$GITHUB_WORKSPACE/examples"
+	BOARD="esp12e"
+	build_pio_sketches "$BOARD" "$GITHUB_WORKSPACE/examples"
+	build_pio_sketches "$BOARD" "$HOME/ESPAsyncWebServer/examples"
 fi
