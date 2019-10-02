@@ -32,7 +32,7 @@ if [ "$BUILD_PIO" -eq 0 ]; then
 
 	FQBN="esp8266com:esp8266:generic:eesz=4M1M,ip=lm2f"
 	build_sketches "$FQBN" "$GITHUB_WORKSPACE/examples"
-	if [ -x "$OS_IS_WINDOWS" ]; then
+	if [ ! "$OS_IS_WINDOWS" == "1" ]; then
 		echo "Installing ESPAsyncWebServer ..."
 		git clone https://github.com/me-no-dev/ESPAsyncWebServer "$ARDUINO_USR_PATH/libraries/ESPAsyncWebServer" > /dev/null 2>&1
 
