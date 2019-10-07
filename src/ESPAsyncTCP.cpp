@@ -70,6 +70,7 @@ yield(), etc.
 
 
  */
+
 #include "Arduino.h"
 
 #include "ESPAsyncTCP.h"
@@ -355,10 +356,12 @@ void AsyncClient::abort(){
 void AsyncClient::close(bool now){
   if(_pcb)
     tcp_recved(_pcb, _rx_ack_len);
-  if(now)
+  if(now) {
+    ASYNC_TCP_DEBUG("close[%u]: AsyncClient 0x%" PRIXPTR "\n", getConnectionId(), uintptr_t(this));
     _close();
-  else
+  } else {
     _close_pcb = true;
+  }
 }
 
 void AsyncClient::stop() {
@@ -503,6 +506,7 @@ void AsyncClient::_close(){
     err_t err = tcp_close(_pcb);
     if(ERR_OK == err) {
       setCloseError(err);
+      ASYNC_TCP_DEBUG("_close[%u]: AsyncClient 0x%" PRIXPTR "\n", getConnectionId(), uintptr_t(this));
     } else {
       ASYNC_TCP_DEBUG("_close[%u]: abort() called for AsyncClient 0x%" PRIXPTR "\n", getConnectionId(), uintptr_t(this));
       abort();
@@ -664,6 +668,7 @@ void AsyncClient::_poll(std::shared_ptr<ACErrorTracker>& errorTracker, tcp_pcb* 
 
   // Close requested
   if(_close_pcb){
+    ASYNC_TCP_DEBUG("_poll[%u]: Process _close_pcb.\n", errorTracker->getConnectionId() );
     _close_pcb = false;
     _close();
     return;
@@ -679,12 +684,14 @@ void AsyncClient::_poll(std::shared_ptr<ACErrorTracker>& errorTracker, tcp_pcb* 
   }
   // RX Timeout
   if(_rx_since_timeout && (now - _rx_last_packet) >= (_rx_since_timeout * 1000)){
+    ASYNC_TCP_DEBUG("_poll[%u]: RX Timeout.\n", errorTracker->getConnectionId() );
     _close();
     return;
   }
 #if ASYNC_TCP_SSL_ENABLED
   // SSL Handshake Timeout
   if(_pcb_secure && !_handshake_done && (now - _rx_last_packet) >= 2000){
+    ASYNC_TCP_DEBUG("_poll[%u]: SSL Handshake Timeout.\n", errorTracker->getConnectionId() );
     _close();
     return;
   }
@@ -762,12 +769,15 @@ err_t AsyncClient::_s_connected(void* arg, void* tpcb, err_t err){
 
 #if ASYNC_TCP_SSL_ENABLED
 void AsyncClient::_s_data(void *arg, struct tcp_pcb *tcp, uint8_t * data, size_t len){
+  (void)tcp;
   AsyncClient *c = reinterpret_cast<AsyncClient*>(arg);
   if(c->_recv_cb)
     c->_recv_cb(c->_recv_cb_arg, c, data, len);
 }
 
 void AsyncClient::_s_handshake(void *arg, struct tcp_pcb *tcp, SSL *ssl){
+  (void)tcp;
+  (void)ssl;
   AsyncClient *c = reinterpret_cast<AsyncClient*>(arg);
   c->_handshake_done = true;
   if(c->_connect_cb)
@@ -775,6 +785,12 @@ void AsyncClient::_s_handshake(void *arg, struct tcp_pcb *tcp, SSL *ssl){
 }
 
 void AsyncClient::_s_ssl_error(void *arg, struct tcp_pcb *tcp, int8_t err){
+  (void)tcp;
+#ifdef DEBUG_ESP_ASYNC_TCP
+  AsyncClient *c = reinterpret_cast<AsyncClient*>(arg);
+  auto errorTracker = c->getACErrorTracker();
+  ASYNC_TCP_DEBUG("_ssl_error[%u] err = %d\n", errorTracker->getConnectionId(), err);
+#endif
   reinterpret_cast<AsyncClient*>(arg)->_ssl_error(err);
 }
 #endif
@@ -1230,7 +1246,7 @@ err_t AsyncServer::_accept(tcp_pcb* pcb, err_t err){
           }
           return ERR_OK;
         }
-        ASYNC_TCP_DEBUG("### put to wait: %d\n", _clients_waiting);
+        //1 ASYNC_TCP_DEBUG("### put to wait: %d\n", _clients_waiting);
         new_item->pcb = pcb;
         new_item->pb = NULL;
         new_item->next = NULL;
@@ -1252,6 +1268,7 @@ err_t AsyncServer::_accept(tcp_pcb* pcb, err_t err){
         if(c){
           ASYNC_TCP_DEBUG("_accept[%u]: SSL connected\n", c->getConnectionId());
           c->onConnect([this](void * arg, AsyncClient *c){
+            (void)arg;
             _connect_cb(_connect_cb_arg, c);
           }, this);
         } else {
@@ -1303,6 +1320,7 @@ err_t AsyncServer::_s_accept(void *arg, tcp_pcb* pcb, err_t err){
 
 #if ASYNC_TCP_SSL_ENABLED
 err_t AsyncServer::_poll(tcp_pcb* pcb){
+  err_t err = ERR_OK;
   if(!tcp_ssl_has_client() && _pending){
     struct pending_pcb * p = _pending;
     if(p->pcb == pcb){
@@ -1314,29 +1332,34 @@ err_t AsyncServer::_poll(tcp_pcb* pcb){
       p->next = b->next;
       p = b;
     }
-    ASYNC_TCP_DEBUG("### remove from wait: %d\n", _clients_waiting);
+    //1 ASYNC_TCP_DEBUG("### remove from wait: %d\n", _clients_waiting);
     AsyncClient *c = new (std::nothrow) AsyncClient(pcb, _ssl_ctx);
     if(c){
       c->onConnect([this](void * arg, AsyncClient *c){
+        (void)arg;
         _connect_cb(_connect_cb_arg, c);
       }, this);
-      if(p->pb)
-        c->_recv(pcb, p->pb, 0);
+      if(p->pb) {
+        auto errorTracker = c->getACErrorTracker();
+        c->_recv(errorTracker, pcb, p->pb, 0);
+        err = errorTracker->getCallbackCloseError();
+      }
     }
     // Should there be error handling for when "new AsynClient" fails??
     free(p);
   }
-  return ERR_OK;
+  return err;
 }
 
 err_t AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, err_t err){
+  (void)err;
   if(!_pending)
     return ERR_OK;
 
   struct pending_pcb * p;
 
   if(!pb){
-    ASYNC_TCP_DEBUG("### close from wait: %d\n", _clients_waiting);
+    //1 ASYNC_TCP_DEBUG("### close from wait: %d\n", _clients_waiting);
     p = _pending;
     if(p->pcb == pcb){
       _pending = _pending->next;
@@ -1357,7 +1380,7 @@ err_t AsyncServer::_recv(struct tcp_pcb *pcb, struct pbuf *pb, err_t err){
       return ERR_ABRT;
     }
   } else {
-    ASYNC_TCP_DEBUG("### wait _recv: %u %d\n", pb->tot_len, _clients_waiting);
+    //1 ASYNC_TCP_DEBUG("### wait _recv: %u %d\n", pb->tot_len, _clients_waiting);
     p = _pending;
     while(p && p->pcb != pcb)
       p = p->next;
