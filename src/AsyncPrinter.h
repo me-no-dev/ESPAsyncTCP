@@ -46,7 +46,7 @@ class AsyncPrinter: public Print {
     AsyncPrinter *next;
 
     AsyncPrinter();
-    AsyncPrinter(AsyncClient *client, size_t txBufLen = 1460);
+    AsyncPrinter(AsyncClient *client, size_t txBufLen = TCP_MSS);
     virtual ~AsyncPrinter();
 
     int connect(IPAddress ip, uint16_t port);

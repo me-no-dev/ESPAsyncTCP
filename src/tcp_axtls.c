@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <tcp_axtls.h>
 
 uint8_t * default_private_key = NULL;

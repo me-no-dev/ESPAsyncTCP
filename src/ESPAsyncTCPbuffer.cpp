@@ -36,9 +36,9 @@ AsyncTCPbuffer::AsyncTCPbuffer(AsyncClient* client) {
     }
 
     _client = client;
-    _TXbufferWrite = new cbuf(1460);
+    _TXbufferWrite = new (std::nothrow) cbuf(TCP_MSS);
     _TXbufferRead = _TXbufferWrite;
-    _RXbuffer = new cbuf(100);
+    _RXbuffer = new (std::nothrow) cbuf(100);
     _RXmode = ATB_RX_MODE_FREE;
     _rxSize = 0;
     _rxTerminator = 0x00;
@@ -121,8 +121,7 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
                 return (len - bytesLeft);
             }
 
-            cbuf * next = new cbuf(1460);
-
+            cbuf * next = new (std::nothrow) cbuf(TCP_MSS);
             if(next == NULL) {
                 DEBUG_ASYNC_TCP("[A-TCP] run out of Heap!\n");
                 panic();
@@ -147,9 +146,11 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
  */
 void AsyncTCPbuffer::flush() {
     while(!_TXbufferWrite->empty()) {
-        while(!_client->canSend()) {
-            delay(0);
+        while(connected() && !_client->canSend()) {
+          delay(0);
         }
+        if(!connected())
+          return;
         _sendBuffer();
     }
 }
@@ -279,6 +280,7 @@ void AsyncTCPbuffer::_attachCallbacks() {
     DEBUG_ASYNC_TCP("[A-TCP] attachCallbacks\n");
 
     _client->onPoll([](void *obj, AsyncClient* c) {
+        (void)c;
         AsyncTCPbuffer* b = ((AsyncTCPbuffer*)(obj));
         if((b->_TXbufferRead != NULL) && !b->_TXbufferRead->empty()) {
             b->_sendBuffer();
@@ -289,6 +291,9 @@ void AsyncTCPbuffer::_attachCallbacks() {
     }, this);
 
     _client->onAck([](void *obj, AsyncClient* c, size_t len, uint32_t time) {
+        (void)c;
+        (void)len;
+        (void)time;
         DEBUG_ASYNC_TCP("[A-TCP] onAck\n");
         ((AsyncTCPbuffer*)(obj))->_sendBuffer();
     }, this);
@@ -308,11 +313,14 @@ void AsyncTCPbuffer::_attachCallbacks() {
     }, this);
 
     _client->onData([](void *obj, AsyncClient* c, void *buf, size_t len) {
+        (void)c;
         AsyncTCPbuffer* b = ((AsyncTCPbuffer*)(obj));
         b->_rxData((uint8_t *)buf, len);
     }, this);
 
     _client->onTimeout([](void *obj, AsyncClient* c, uint32_t time){
+        (void)obj;
+        (void)time;
         DEBUG_ASYNC_TCP("[A-TCP] onTimeout\n");
         c->close();
     }, this);
@@ -330,7 +338,7 @@ void AsyncTCPbuffer::_sendBuffer() {
         return;
     }
 
-    while((_client->space() > 0) && (_TXbufferRead->available() > 0) && _client->canSend()) {
+    while(connected() && (_client->space() > 0) && (_TXbufferRead->available() > 0) && _client->canSend()) {
 
         available = _TXbufferRead->available();
 
@@ -338,7 +346,7 @@ void AsyncTCPbuffer::_sendBuffer() {
             available = _client->space();
         }
 
-        char *out = new char[available];
+        char *out = new (std::nothrow) char[available];
         if(out == NULL) {
             DEBUG_ASYNC_TCP("[A-TCP] to less heap, try later.\n");
             return;
@@ -351,6 +359,9 @@ void AsyncTCPbuffer::_sendBuffer() {
         size_t send = _client->write((const char*) out, available);
         if(send != available) {
             DEBUG_ASYNC_TCP("[A-TCP] write failed send: %d available: %d \n", send, available);
+            if(!connected()) {
+                DEBUG_ASYNC_TCP("[A-TCP] incomplete transfer, connection lost.\n");
+            }
         }
 
         // remove really send data from buffer
@@ -453,7 +464,10 @@ size_t AsyncTCPbuffer::_handleRxBuffer(uint8_t *buf, size_t len) {
         }
 
         if(BufferAvailable > 0) {
-            uint8_t * b = new uint8_t[BufferAvailable];
+            uint8_t * b = new (std::nothrow) uint8_t[BufferAvailable];
+            if(b == NULL){
+              panic(); //TODO: What action should this be ?
+            }
             _RXbuffer->peek((char *) b, BufferAvailable);
             r = _cbRX(b, BufferAvailable);
             _RXbuffer->remove(r);
