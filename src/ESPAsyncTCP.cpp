@@ -180,7 +180,6 @@ AsyncClient::AsyncClient(tcp_pcb* pcb):
   , _ack_pcb(true)
   , _tx_unacked_len(0)
   , _tx_acked_len(0)
-  , _tx_unsent_len(0)
   , _rx_ack_len(0)
   , _rx_last_packet(0)
   , _rx_since_timeout(0)
@@ -413,7 +412,7 @@ size_t AsyncClient::add(const char* data, size_t size, uint8_t apiflags) {
     ASYNC_TCP_DEBUG("_add[%u]: tcp_write() returned err: %s(%ld)\n", getConnectionId(), errorToString(err), err);
     return 0;
   }
-  _tx_unsent_len += will_send;
+  _tx_unacked_len += will_send;
   return will_send;
 }
 
@@ -426,13 +425,10 @@ bool AsyncClient::send(){
   if(err == ERR_OK){
     _pcb_busy = true;
     _pcb_sent_at = millis();
-    _tx_unacked_len += _tx_unsent_len;
-    _tx_unsent_len = 0;
     return true;
   }
 
   ASYNC_TCP_DEBUG("send[%u]: tcp_output() returned err: %s(%ld)", getConnectionId(), errorToString(err), err);
-  _tx_unsent_len = 0;
   return false;
 }
 
