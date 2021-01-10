@@ -467,6 +467,7 @@ void AsyncClient::_connected(std::shared_ptr<ACErrorTracker>& errorTracker, void
   if(_pcb){
     _pcb_busy = false;
     _rx_last_packet = millis();
+    _tx_unacked_len = 0;
     tcp_setprio(_pcb, TCP_PRIO_MIN);
     tcp_recv(_pcb, &_s_recv);
     tcp_sent(_pcb, &_s_sent);
