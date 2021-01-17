@@ -242,6 +242,10 @@ class AsyncClient {
     uint16_t getRemotePort();
     uint32_t getLocalAddress();
     uint16_t getLocalPort();
+    // When set to false (default), all received data will be acknowledged automatically.
+    // When set to true, the clients needs to acknowledge all received data
+    //  (usefull for flow control to receive big data).
+    void setClientControlAck(bool clientControlAck);
 
     IPAddress remoteIP();
     uint16_t  remotePort();

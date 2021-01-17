@@ -633,8 +633,6 @@ void AsyncClient::_recv(std::shared_ptr<ACErrorTracker>& errorTracker, tcp_pcb* 
       }
       return;
     }
-    //we should not ack before we assimilate the data
-    _ack_pcb = true;
     pbuf *b = pb;
     pb = b->next;
     b->next = NULL;
@@ -823,6 +821,10 @@ bool AsyncClient::getNoDelay(){
   if(!_pcb)
     return false;
   return tcp_nagle_disabled(_pcb);
+}
+
+void AsyncClient::setClientControlAck(bool clientControlAck){
+  _ack_pcb = !clientControlAck;
 }
 
 uint16_t AsyncClient::getMss(){
