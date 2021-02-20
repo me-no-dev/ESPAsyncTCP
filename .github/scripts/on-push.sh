@@ -46,18 +46,18 @@ else
 	source ./.github/scripts/install-platformio.sh
 
 	echo "Installing ESPAsyncTCP ..."
-	python -m platformio lib --storage-dir "$GITHUB_WORKSPACE" install
+	python3 -m platformio lib --storage-dir "$GITHUB_WORKSPACE" install
 
 	BOARD="esp12e"
 	build_pio_sketches "$BOARD" "$GITHUB_WORKSPACE/examples"
 
 	if [[ "$OSTYPE" != "cygwin" ]] && [[ "$OSTYPE" != "msys" ]] && [[ "$OSTYPE" != "win32" ]]; then
 		echo "Installing ESPAsyncWebServer ..."
-		python -m platformio lib -g install https://github.com/me-no-dev/ESPAsyncWebServer.git > /dev/null 2>&1
+		python3 -m platformio lib -g install https://github.com/me-no-dev/ESPAsyncWebServer.git > /dev/null 2>&1
 		git clone https://github.com/me-no-dev/ESPAsyncWebServer "$HOME/ESPAsyncWebServer" > /dev/null 2>&1
 
 		echo "Installing ArduinoJson ..."
-		python -m platformio lib -g install https://github.com/bblanchon/ArduinoJson.git > /dev/null 2>&1
+		python3 -m platformio lib -g install https://github.com/bblanchon/ArduinoJson.git > /dev/null 2>&1
 
 		build_pio_sketches "$BOARD" "$HOME/ESPAsyncWebServer/examples"
 	fi
