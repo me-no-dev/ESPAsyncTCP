@@ -1055,6 +1055,7 @@ AsyncServer::AsyncServer(IPAddress addr, uint16_t port)
   : _port(port)
   , _addr(addr)
   , _noDelay(false)
+  , _bind_pcb(0)
   , _pcb(0)
   , _connect_cb(0)
   , _connect_cb_arg(0)
@@ -1075,6 +1076,7 @@ AsyncServer::AsyncServer(uint16_t port)
   : _port(port)
   , _addr((uint32_t) IPADDR_ANY)
   , _noDelay(false)
+  , _bind_pcb(0)
   , _pcb(0)
   , _connect_cb(0)
   , _connect_cb_arg(0)
@@ -1132,6 +1134,7 @@ void AsyncServer::begin(){
     tcp_close(pcb);
     return;
   }
+  _bind_pcb = pcb;
   _pcb = listen_pcb;
   tcp_arg(_pcb, (void*) this);
   tcp_accept(_pcb, &_s_accept);
@@ -1159,6 +1162,10 @@ void AsyncServer::end(){
       tcp_abort(_pcb);
     }
     _pcb = NULL;
+  }
+  if(_bind_pcb){
+    tcp_close(_bind_pcb);
+    _bind_pcb = NULL;
   }
 #if ASYNC_TCP_SSL_ENABLED
   if(_ssl_ctx){

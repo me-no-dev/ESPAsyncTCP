@@ -276,6 +276,7 @@ class AsyncServer {
     uint16_t _port;
     IPAddress _addr;
     bool _noDelay;
+    tcp_pcb* _bind_pcb;
     tcp_pcb* _pcb;
     AcConnectHandler _connect_cb;
     void* _connect_cb_arg;
