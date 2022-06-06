@@ -1116,6 +1116,9 @@ void AsyncServer::begin(){
   if (!pcb){
     return;
   }
+  
+  // Reuse freed socket.
+  pcb->so_options |= SOF_REUSEADDR;
 
   tcp_setprio(pcb, TCP_PRIO_MIN);
   ip_addr_t local_addr;
