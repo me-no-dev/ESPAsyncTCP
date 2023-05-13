@@ -31,7 +31,7 @@ extern "C" {
     #include "lwip/init.h"
     #include "lwip/err.h"
     #include "lwip/pbuf.h"
-};
+}
 
 class AsyncClient;
 class AsyncServer;
