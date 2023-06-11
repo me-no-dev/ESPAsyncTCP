@@ -237,9 +237,7 @@ class AsyncClient {
     void setAckTimeout(uint32_t timeout);//no ACK timeout for the last sent packet in milliseconds
     void setNoDelay(bool nodelay);
     bool getNoDelay();
-    uint32_t getRemoteAddress();
     uint16_t getRemotePort();
-    uint32_t getLocalAddress();
     uint16_t getLocalPort();
 
     IPAddress remoteIP();
