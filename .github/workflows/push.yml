@@ -1,10 +1,8 @@
 name: ESP Async TCP CI
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-    - master
-    - release/*
   pull_request:
 
 jobs:
