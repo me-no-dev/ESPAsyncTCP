@@ -1080,7 +1080,7 @@ AsyncServer::AsyncServer(IPAddress addr, uint16_t port)
 
 AsyncServer::AsyncServer(uint16_t port)
   : _port(port)
-  , _addr((uint32_t) IPADDR_ANY)
+  , _addr(IP_ANY_TYPE)
   , _noDelay(false)
   , _pcb(0)
   , _connect_cb(0)
