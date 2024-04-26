@@ -703,6 +703,8 @@ void AsyncClient::_dns_found(const ip_addr *ipaddr){
   if(ipaddr){
 #if ASYNC_TCP_SSL_ENABLED
     connect(IPAddress(ipaddr->addr), _connect_port, _pcb_secure);
+#elif defined(ARDUINO_ARCH_RP2040)
+    connect(IPAddress((const ip_addr_t*)ipaddr), _connect_port);
 #else
     connect(IPAddress(ipaddr->addr), _connect_port);
 #endif

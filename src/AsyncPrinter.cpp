@@ -45,7 +45,11 @@ AsyncPrinter::AsyncPrinter(AsyncClient *client, size_t txBufLen)
   _attachCallbacks();
   _tx_buffer = new (std::nothrow) cbuf(_tx_buffer_size);
   if(_tx_buffer == NULL) {
+#if defined(ARDUINO_ARCH_RP2040)
+    panic("OOM"); //What should we do?
+#else
     panic(); //What should we do?
+#endif
   }
 }
 
@@ -68,7 +72,11 @@ int AsyncPrinter::connect(IPAddress ip, uint16_t port){
     return 0;
   _client = new (std::nothrow) AsyncClient();
   if (_client == NULL) {
+#if defined(ARDUINO_ARCH_RP2040)
+    panic("OOM");
+#else
     panic();
+#endif
   }
 
   _client->onConnect([](void *obj, AsyncClient *c){ ((AsyncPrinter*)(obj))->_onConnect(c); }, this);
@@ -85,7 +93,11 @@ int AsyncPrinter::connect(const char *host, uint16_t port){
     return 0;
   _client = new (std::nothrow) AsyncClient();
   if (_client == NULL) {
+#if defined(ARDUINO_ARCH_RP2040)
+    panic("OOM");
+#else
     panic();
+#endif
   }
 
   _client->onConnect([](void *obj, AsyncClient *c){ ((AsyncPrinter*)(obj))->_onConnect(c); }, this);
@@ -106,7 +118,11 @@ void AsyncPrinter::_onConnect(AsyncClient *c){
   }
   _tx_buffer = new (std::nothrow) cbuf(_tx_buffer_size);
   if(_tx_buffer) {
+#if defined(ARDUINO_ARCH_RP2040)
+    panic("OOM");
+#else
     panic();
+#endif
   }
 
   _attachCallbacks();
@@ -127,7 +143,11 @@ AsyncPrinter & AsyncPrinter::operator=(const AsyncPrinter &other){
   }
   _tx_buffer = new (std::nothrow) cbuf(other._tx_buffer_size);
   if(_tx_buffer == NULL) {
+#if defined(ARDUINO_ARCH_RP2040)
+    panic("OOM");
+#else
     panic();
+#endif
   }
 
   _client = other._client;
@@ -179,12 +199,16 @@ size_t AsyncPrinter::_sendBuffer(){
     available= sendable;
   char *out = new (std::nothrow) char[available];
   if (out == NULL) {
+#if defined(ARDUINO_ARCH_RP2040)
+    panic("OOM"); // Connection should be aborted instead
+#else
     panic(); // Connection should be aborted instead
+#endif
   }
 
   _tx_buffer->read(out, available);
   size_t sent = _client->write(out, available);
-  delete out;
+  delete[] out;
   return sent;
 }
 
