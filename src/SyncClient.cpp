@@ -22,7 +22,9 @@
 #include "SyncClient.h"
 #include "ESPAsyncTCP.h"
 #include "cbuf.h"
+#if !defined(ARDUINO_ARCH_RP2040)
 #include <interrupts.h>
+#endif
 
 #define DEBUG_ESP_SYNC_CLIENT
 #if defined(DEBUG_ESP_SYNC_CLIENT) && !defined(SYNC_CLIENT_DEBUG)

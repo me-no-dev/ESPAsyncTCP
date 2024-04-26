@@ -24,7 +24,9 @@
 
 
 #include <Arduino.h>
+#if !defined(ARDUINO_ARCH_RP2040)
 #include <debug.h>
+#endif
 
 #include "ESPAsyncTCPbuffer.h"
 
@@ -32,7 +34,11 @@
 AsyncTCPbuffer::AsyncTCPbuffer(AsyncClient* client) {
     if(client == NULL) {
         DEBUG_ASYNC_TCP("[A-TCP] client is null!!!\n");
+#if defined(ARDUINO_ARCH_RP2040)
+        panic("[A-TCP] client is null!!!\n");
+#else
         panic();
+#endif
     }
 
     _client = client;
@@ -116,7 +122,11 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
         if(_TXbufferWrite->full() && bytesLeft > 0) {
 
             // to less ram!!!
+#if defined(ARDUINO_ARCH_RP2040)
+            if(rp2040.getFreeHeap() < 4096) {
+#else
             if(ESP.getFreeHeap() < 4096) {
+#endif
                 DEBUG_ASYNC_TCP("[A-TCP] run out of Heap can not send all Data!\n");
                 return (len - bytesLeft);
             }
@@ -124,7 +134,11 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len) {
             cbuf * next = new (std::nothrow) cbuf(TCP_MSS);
             if(next == NULL) {
                 DEBUG_ASYNC_TCP("[A-TCP] run out of Heap!\n");
+#if defined(ARDUINO_ARCH_RP2040)
+                panic("[A-TCP] run out of Heap!\n");
+#else
                 panic();
+#endif
             } else {
                 DEBUG_ASYNC_TCP("[A-TCP] new cbuf\n");
             }
@@ -221,7 +235,7 @@ void AsyncTCPbuffer::onDisconnect(AsyncTCPbufferDisconnectCb cb) {
 
 IPAddress AsyncTCPbuffer::remoteIP() {
     if(!_client) {
-        return IPAddress(0U);
+        return IPAddress((uint32_t)0);
     }
     return _client->remoteIP();
 }
@@ -371,11 +385,11 @@ void AsyncTCPbuffer::_sendBuffer() {
         if(_TXbufferRead->available() == 0 && _TXbufferRead->next != NULL) {
             cbuf * old = _TXbufferRead;
             _TXbufferRead = _TXbufferRead->next;
-            delete old;
+            delete[] old;
             DEBUG_ASYNC_TCP("[A-TCP] delete cbuf\n");
         }
 
-        delete out;
+        delete[] out;
     }
 
 }
@@ -466,8 +480,12 @@ size_t AsyncTCPbuffer::_handleRxBuffer(uint8_t *buf, size_t len) {
         if(BufferAvailable > 0) {
             uint8_t * b = new (std::nothrow) uint8_t[BufferAvailable];
             if(b == NULL){
+#if defined(ARDUINO_ARCH_RP2040)
+              panic("OOM"); //TODO: What action should this be ?
+#else
               panic(); //TODO: What action should this be ?
-            }
+#endif
+        }
             _RXbuffer->peek((char *) b, BufferAvailable);
             r = _cbRX(b, BufferAvailable);
             _RXbuffer->remove(r);
