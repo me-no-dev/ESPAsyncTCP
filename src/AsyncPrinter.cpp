@@ -208,7 +208,7 @@ size_t AsyncPrinter::_sendBuffer(){
 
   _tx_buffer->read(out, available);
   size_t sent = _client->write(out, available);
-  delete out;
+  delete[] out;
   return sent;
 }
 
