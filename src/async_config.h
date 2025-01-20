@@ -20,9 +20,11 @@
 // Starting with Arduino Core 2.4.0 and up the define of DEBUG_ESP_PORT
 // can be handled through the Arduino IDE Board options instead of here.
 // #define DEBUG_ESP_PORT Serial
-
 // #define DEBUG_ESP_ASYNC_TCP 1
 // #define DEBUG_ESP_TCP_SSL 1
+
+#ifndef DEBUG_SKIP__DEBUG_PRINT_MACROS
+
 #include <DebugPrintMacros.h>
 
 #ifndef ASYNC_TCP_ASSERT
@@ -33,6 +35,8 @@
 #endif
 #ifndef TCP_SSL_DEBUG
 #define TCP_SSL_DEBUG(...) do { (void)0;} while(false)
+#endif
+
 #endif
 
 #endif /* LIBRARIES_ESPASYNCTCP_SRC_ASYNC_CONFIG_H_ */
